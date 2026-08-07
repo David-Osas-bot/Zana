@@ -1,0 +1,29 @@
+I want to build my personal Project Management Tool called Zana.
+I want the UI color to be premium black and white only
+Act as a Senior Full-Stack Software Architect. I want to design a lightweight, streamlined Project Management web application focused on simplicity, zero bloat, and fast team collaboration.
+Here is the exact visual hierarchy and workflow I want:
+
+System Hierarchy
+Repositories / Projects: The top-level container. A user can create multiple project repos.
+Kanban Boards: Every repo contains a single 3-column Kanban board:"Not Done"
+"Doing"
+"Done"
+Tasks: Lightweight task cards residing inside a specific repo that move across the 3 status columns.
+Collaboration & Invitation Workflow
+Email Invites: A repo owner can invite team members to a specific repo by entering their email address.
+Member Access: Invited users gain access to that project's board to create, update, assign, and drag task cards across columns.
+Assignment: Tasks can be assigned to any invited team member on that repo.
+Minimal Task Schema
+Title (required)
+Description (optional text/markdown)
+Status: "Not Done" | "Doing" | "Done"
+Assignee (invited collaborator ID)
+Created / Updated timestamps
+TECHNICAL REQUEST:
+Based on this specification, please provide a complete technical blueprint containing:
+
+Database Schema: A clean, production-ready schema (Relational/SQL or Document/MongoDB) modeling Users, Projects/Repos, ProjectMemberships (invites & access), and Tasks.
+Email Invitation Flow: A step-by-step technical algorithm/logic for how project invites work (handling both existing registered users and un-registered new users via email tokens).
+Core API Endpoints: RESTful API route definitions for Auth, Repo Management, Invites, and Task CRUD / Column position updates.
+Frontend Architecture & State Handling: Recommended approach for handling smooth, real-time drag-and-drop updates across the 3 Kanban columns.
+Recommended Tech Stack: React, NodeJs and Firebase and would like to host the backend on Render, but if you have better option communicate

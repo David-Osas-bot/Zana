@@ -1,6 +1,6 @@
-# [Project name]
+# Zana
 
-_Replace the heading above with the project's name, and this line with one sentence describing what this app does for users._
+Zana is a focused project-management workspace for organizing projects, moving tasks across a three-column board, and inviting lightweight collaborators.
 
 ## Run & Operate
 
@@ -22,23 +22,37 @@ _Replace the heading above with the project's name, and this line with one sente
 
 ## Where things live
 
-_Populate as you build — short repo map plus pointers to the source-of-truth file for DB schema, API contracts, theme files, etc._
+- `artifacts/zana/src/App.tsx` — dashboard, project board, task, member, and invite flows
+- `artifacts/zana/src/index.css` — monochrome visual system and responsive layout
+- `lib/api-spec/openapi.yaml` — source of truth for the API contract
+- `artifacts/api-server/src/routes/zana.ts` — project, task, member, invite, overview, and seed routes
+- `lib/db/src/schema/zana.ts` — PostgreSQL schema for Zana data
 
 ## Architecture decisions
 
-_Populate as you build — non-obvious choices a reader couldn't infer from the code (3-5 bullets)._
+- The frontend uses generated React Query hooks from the OpenAPI contract rather than hand-written request types.
+- Zana uses a monochrome palette with warm paper tones to honor the requested premium black-and-white direction.
+- The first workspace is seeded with useful example content so the board is immediately understandable.
+- Task movement is optimistic in feel through direct board interactions and query invalidation after server updates.
 
 ## Product
 
-_Describe the high-level user-facing capabilities of this app once they exist._
+- Dashboard with project totals, open/completed task counts, collaborators, activity, and quick actions.
+- Project creation and deletion.
+- Three-column task board with drag-and-drop movement between Not started, In progress, and Complete.
+- Task creation, editing, assignment, deletion, and status controls.
+- Project member list and email invitation flow.
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- Keep the interface premium, minimal, and black-and-white only.
+- Favor simplicity, zero bloat, and fast collaboration.
 
 ## Gotchas
 
-_Populate as you build — sharp edges, "always run X before Y" rules._
+- Run API codegen after changing `lib/api-spec/openapi.yaml`.
+- Run `pnpm --filter @workspace/db run push` after schema changes.
+- The API seed initializer must remain concurrency-safe because the dashboard loads several queries in parallel on first visit.
 
 ## Pointers
 

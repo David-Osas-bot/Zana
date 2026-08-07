@@ -1,0 +1,28 @@
+kind = "web"
+previewPath = "/"
+title = "Zana"
+description = "A focused personal project management workspace for organizing repositories, tracking tasks across a three-column board, and coordinating lightweight team collaboration."
+version = "1.0.0"
+id = "artifacts/zana"
+router = "path"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 18106
+
+[services.development]
+run = "pnpm --filter @workspace/zana run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/zana", "run", "build" ]
+serve = "static"
+publicDir = "artifacts/zana/dist/public"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "18106"
+BASE_PATH = "/"

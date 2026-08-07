@@ -3,13 +3,19 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Zana project management API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: projects
+    description: Project and board operations
+  - name: tasks
+    description: Task operations
+  - name: invites
+    description: Project invitation operations
 paths:
   /healthz:
     get:
@@ -24,7 +30,206 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+  /me:
+    get:
+      operationId: getMe
+      tags: [projects]
+      summary: Get the current workspace user
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+  /overview:
+    get:
+      operationId: getOverview
+      tags: [projects]
+      summary: Get dashboard totals and recent activity
+      responses:
+        "200":
+          description: Dashboard overview
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Overview"
+  /projects:
+    get:
+      operationId: listProjects
+      tags: [projects]
+      summary: List projects available to the current user
+      responses:
+        "200":
+          description: Project list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Project"
+    post:
+      operationId: createProject
+      tags: [projects]
+      summary: Create a project
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectInput"
+      responses:
+        "201":
+          description: Created project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+  /projects/{projectId}:
+    get:
+      operationId: getProject
+      tags: [projects]
+      summary: Get a project with its board and members
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project board
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ProjectBoard"
+        "404":
+          description: Project not found
+    patch:
+      operationId: updateProject
+      tags: [projects]
+      summary: Update a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProjectUpdate"
+      responses:
+        "200":
+          description: Updated project
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+    delete:
+      operationId: deleteProject
+      tags: [projects]
+      summary: Delete a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "204":
+          description: Project deleted
+  /projects/{projectId}/members:
+    get:
+      operationId: listProjectMembers
+      tags: [projects]
+      summary: List project members and pending invites
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      responses:
+        "200":
+          description: Project members
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Member"
+  /projects/{projectId}/tasks:
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task in a project
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskInput"
+      responses:
+        "201":
+          description: Created task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+  /projects/{projectId}/tasks/{taskId}:
+    patch:
+      operationId: updateTask
+      tags: [tasks]
+      summary: Update task fields or move a task between columns
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/TaskId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskUpdate"
+      responses:
+        "200":
+          description: Updated task
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+    delete:
+      operationId: deleteTask
+      tags: [tasks]
+      summary: Delete a task
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+        - $ref: "#/components/parameters/TaskId"
+      responses:
+        "204":
+          description: Task deleted
+  /projects/{projectId}/invites:
+    post:
+      operationId: createInvite
+      tags: [invites]
+      summary: Invite a collaborator by email
+      parameters:
+        - $ref: "#/components/parameters/ProjectId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InviteInput"
+      responses:
+        "201":
+          description: Invitation created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Member"
 components:
+  parameters:
+    ProjectId:
+      name: projectId
+      in: path
+      required: true
+      schema:
+        type: string
+    TaskId:
+      name: taskId
+      in: path
+      required: true
+      schema:
+        type: string
   schemas:
     HealthStatus:
       type: object
@@ -33,4 +238,121 @@ components:
           type: string
       required:
         - status
+    User:
+      type: object
+      required: [id, name, email, initials]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        initials: { type: string }
+    Project:
+      type: object
+      required: [id, name, description, color, taskCount, updatedAt]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        description: { type: string }
+        color: { type: string }
+        taskCount: { type: number }
+        updatedAt: { type: string }
+    ProjectInput:
+      type: object
+      required: [name]
+      properties:
+        name: { type: string, minLength: 1 }
+        description: { type: string }
+        color: { type: string }
+    ProjectUpdate:
+      type: object
+      properties:
+        name: { type: string, minLength: 1 }
+        description: { type: string }
+        color: { type: string }
+    Task:
+      type: object
+      required: [id, projectId, title, description, status, assigneeId, assigneeName, assigneeInitials, createdAt, updatedAt]
+      properties:
+        id: { type: string }
+        projectId: { type: string }
+        title: { type: string }
+        description: { type: string }
+        status:
+          type: string
+          enum: [not_done, doing, done]
+        assigneeId: { type: ["string", "null"] }
+        assigneeName: { type: ["string", "null"] }
+        assigneeInitials: { type: ["string", "null"] }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+    TaskInput:
+      type: object
+      required: [title, status]
+      properties:
+        title: { type: string, minLength: 1 }
+        description: { type: string }
+        status:
+          type: string
+          enum: [not_done, doing, done]
+        assigneeId: { type: ["string", "null"] }
+    TaskUpdate:
+      type: object
+      properties:
+        title: { type: string, minLength: 1 }
+        description: { type: string }
+        status:
+          type: string
+          enum: [not_done, doing, done]
+        assigneeId: { type: ["string", "null"] }
+    Member:
+      type: object
+      required: [id, name, email, initials, role, status]
+      properties:
+        id: { type: string }
+        name: { type: string }
+        email: { type: string }
+        initials: { type: string }
+        role:
+          type: string
+          enum: [owner, member]
+        status:
+          type: string
+          enum: [active, invited]
+    ProjectBoard:
+      type: object
+      required: [project, tasks, members]
+      properties:
+        project: { $ref: "#/components/schemas/Project" }
+        tasks:
+          type: array
+          items: { $ref: "#/components/schemas/Task" }
+        members:
+          type: array
+          items: { $ref: "#/components/schemas/Member" }
+    InviteInput:
+      type: object
+      required: [email]
+      properties:
+        email: { type: string }
+    Activity:
+      type: object
+      required: [id, text, time, kind]
+      properties:
+        id: { type: string }
+        text: { type: string }
+        time: { type: string }
+        kind:
+          type: string
+          enum: [task, project, member]
+    Overview:
+      type: object
+      required: [projectCount, openTaskCount, completedTaskCount, memberCount, activities]
+      properties:
+        projectCount: { type: number }
+        openTaskCount: { type: number }
+        completedTaskCount: { type: number }
+        memberCount: { type: number }
+        activities:
+          type: array
+          items: { $ref: "#/components/schemas/Activity" }
 

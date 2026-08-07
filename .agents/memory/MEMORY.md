@@ -1,0 +1,1 @@
+- [Zana seed initialization](zana-seed-initialization.md) — first-load API queries run concurrently, so workspace seeding must remain single-flight.
