@@ -1,3 +1,92 @@
+// // import path from 'path';
+// // import react from '@vitejs/plugin-react';
+// // import tailwindcss from '@tailwindcss/vite';
+// // import { defineConfig } from 'vite';
+
+// // import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
+
+// // const rawPort = process.env.PORT;
+
+// // if (!rawPort) {
+// //   throw new Error(
+// //     'PORT environment variable is required but was not provided.',
+// //   );
+// // }
+
+// // const port = Number(rawPort);
+
+// // if (Number.isNaN(port) || port <= 0) {
+// //   throw new Error(`Invalid PORT value: "${rawPort}"`);
+// // }
+
+// // const basePath = process.env.BASE_PATH;
+
+// // if (!basePath) {
+// //   throw new Error(
+// //     'BASE_PATH environment variable is required but was not provided.',
+// //   );
+// // }
+
+// // export default defineConfig({
+// //   base: basePath,
+// //   plugins: [
+// //     react(),
+// //     tailwindcss(),
+// //     runtimeErrorOverlay(),
+// //     ...(process.env.NODE_ENV !== 'production' &&
+// //     process.env.REPL_ID !== undefined
+// //       ? [
+// //           await import('@replit/vite-plugin-cartographer').then((m) =>
+// //             m.cartographer({
+// //               root: path.resolve(import.meta.dirname, '..'),
+// //             }),
+// //           ),
+// //           await import('@replit/vite-plugin-dev-banner').then((m) =>
+// //             m.devBanner(),
+// //           ),
+// //         ]
+// //       : []),
+// //   ],
+// //   resolve: {
+// //     alias: {
+// //       '@': path.resolve(import.meta.dirname, 'src'),
+// //       '@assets': path.resolve(
+// //         import.meta.dirname,
+// //         '..',
+// //         '..',
+// //         'attached_assets',
+// //       ),
+// //     },
+// //     dedupe: ['react', 'react-dom'],
+// //   },
+// //   root: path.resolve(import.meta.dirname),
+// //   build: {
+// //     outDir: path.resolve(import.meta.dirname, 'dist/public'),
+// //     emptyOutDir: true,
+// //   },
+// //   server: {
+// //     port,
+// //     strictPort: true,
+// //     host: '0.0.0.0',
+// //     allowedHosts: true,
+// //     fs: {
+// //       strict: true,
+// //     },
+// //   },
+// //   preview: {
+// //     port,
+// //     host: '0.0.0.0',
+// //     allowedHosts: true,
+// //   },
+// // });
+
+
+
+
+
+
+
+
 // import path from 'path';
 // import react from '@vitejs/plugin-react';
 // import tailwindcss from '@tailwindcss/vite';
@@ -27,6 +116,8 @@
 //   );
 // }
 
+// const backendPort = process.env.BACKEND_PORT || 5000;
+
 // export default defineConfig({
 //   base: basePath,
 //   plugins: [
@@ -34,17 +125,17 @@
 //     tailwindcss(),
 //     runtimeErrorOverlay(),
 //     ...(process.env.NODE_ENV !== 'production' &&
-//     process.env.REPL_ID !== undefined
+//       process.env.REPL_ID !== undefined
 //       ? [
-//           await import('@replit/vite-plugin-cartographer').then((m) =>
-//             m.cartographer({
-//               root: path.resolve(import.meta.dirname, '..'),
-//             }),
-//           ),
-//           await import('@replit/vite-plugin-dev-banner').then((m) =>
-//             m.devBanner(),
-//           ),
-//         ]
+//         await import('@replit/vite-plugin-cartographer').then((m) =>
+//           m.cartographer({
+//             root: path.resolve(import.meta.dirname, '..'),
+//           }),
+//         ),
+//         await import('@replit/vite-plugin-dev-banner').then((m) =>
+//           m.devBanner(),
+//         ),
+//       ]
 //       : []),
 //   ],
 //   resolve: {
@@ -72,6 +163,13 @@
 //     fs: {
 //       strict: true,
 //     },
+//     proxy: {
+//       '/api': {
+//         target: `http://127.0.0.1:${backendPort}`,
+//         changeOrigin: true,
+//         secure: false,
+//       },
+//     },
 //   },
 //   preview: {
 //     port,
@@ -87,93 +185,91 @@
 
 
 
+
+
+
+
+
 import path from 'path';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vite';
 
 import runtimeErrorOverlay from '@replit/vite-plugin-runtime-error-modal';
+import { cartographer } from '@replit/vite-plugin-cartographer';
+import { devBanner } from '@replit/vite-plugin-dev-banner';
 
-const rawPort = process.env.PORT;
+export default defineConfig(({ command }) => {
+  const rawPort = process.env.PORT;
 
-if (!rawPort) {
-  throw new Error(
-    'PORT environment variable is required but was not provided.',
-  );
-}
+  if (command === 'serve' && !rawPort) {
+    throw new Error(
+      'PORT environment variable is required but was not provided.',
+    );
+  }
 
-const port = Number(rawPort);
+  const port = rawPort ? Number(rawPort) : undefined;
 
-if (Number.isNaN(port) || port <= 0) {
-  throw new Error(`Invalid PORT value: "${rawPort}"`);
-}
+  if (rawPort && (Number.isNaN(port) || (port as number) <= 0)) {
+    throw new Error(`Invalid PORT value: "${rawPort}"`);
+  }
 
-const basePath = process.env.BASE_PATH;
+  const basePath = process.env.BASE_PATH ?? '/';
+  const backendPort = process.env.BACKEND_PORT || 5000;
 
-if (!basePath) {
-  throw new Error(
-    'BASE_PATH environment variable is required but was not provided.',
-  );
-}
-
-const backendPort = process.env.BACKEND_PORT || 5000;
-
-export default defineConfig({
-  base: basePath,
-  plugins: [
-    react(),
-    tailwindcss(),
-    runtimeErrorOverlay(),
-    ...(process.env.NODE_ENV !== 'production' &&
-      process.env.REPL_ID !== undefined
-      ? [
-        await import('@replit/vite-plugin-cartographer').then((m) =>
-          m.cartographer({
+  return {
+    base: basePath,
+    plugins: [
+      react(),
+      tailwindcss(),
+      runtimeErrorOverlay(),
+      ...(process.env.NODE_ENV !== 'production' &&
+        process.env.REPL_ID !== undefined
+        ? [
+          cartographer({
             root: path.resolve(import.meta.dirname, '..'),
           }),
+          devBanner(),
+        ]
+        : []),
+    ],
+    resolve: {
+      alias: {
+        '@': path.resolve(import.meta.dirname, 'src'),
+        '@assets': path.resolve(
+          import.meta.dirname,
+          '..',
+          '..',
+          'attached_assets',
         ),
-        await import('@replit/vite-plugin-dev-banner').then((m) =>
-          m.devBanner(),
-        ),
-      ]
-      : []),
-  ],
-  resolve: {
-    alias: {
-      '@': path.resolve(import.meta.dirname, 'src'),
-      '@assets': path.resolve(
-        import.meta.dirname,
-        '..',
-        '..',
-        'attached_assets',
-      ),
+      },
+      dedupe: ['react', 'react-dom'],
     },
-    dedupe: ['react', 'react-dom'],
-  },
-  root: path.resolve(import.meta.dirname),
-  build: {
-    outDir: path.resolve(import.meta.dirname, 'dist/public'),
-    emptyOutDir: true,
-  },
-  server: {
-    port,
-    strictPort: true,
-    host: '0.0.0.0',
-    allowedHosts: true,
-    fs: {
-      strict: true,
+    root: path.resolve(import.meta.dirname),
+    build: {
+      outDir: path.resolve(import.meta.dirname, 'dist/public'),
+      emptyOutDir: true,
     },
-    proxy: {
-      '/api': {
-        target: `http://127.0.0.1:${backendPort}`,
-        changeOrigin: true,
-        secure: false,
+    server: {
+      port,
+      strictPort: true,
+      host: '0.0.0.0',
+      allowedHosts: true,
+      fs: {
+        strict: true,
+      },
+      proxy: {
+        '/api': {
+          target: `http://127.0.0.1:${backendPort}`,
+          changeOrigin: true,
+          secure: false,
+        },
       },
     },
-  },
-  preview: {
-    port,
-    host: '0.0.0.0',
-    allowedHosts: true,
-  },
+    preview: {
+      port,
+      host: '0.0.0.0',
+      allowedHosts: true,
+    },
+  };
 });
