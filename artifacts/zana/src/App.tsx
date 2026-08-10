@@ -134,6 +134,11 @@ import { ArrowLeft, ArrowRight, Check, LayoutDashboard, MoreHorizontal, Plus, Se
 import { useMemo, useState } from 'react';
 import { Link, Route, Switch, Router as WouterRouter, useLocation, useParams } from 'wouter';
 import NotFound from '@/pages/not-found';
+import Landing from '@/pages/landing';
+import SignIn from '@/pages/signin';
+import SignUp from '@/pages/signup';
+import { useSession } from '@/hooks/use-session';
+import { Redirect } from 'wouter';
 
 const queryClient = new QueryClient();
 type Modal = 'project' | 'task' | 'members' | 'invite' | null;
@@ -746,10 +751,18 @@ function relative(date: string) {
 }
 
 function Router() {
+  const { user, isLoading } = useSession();
+
+  if (isLoading) {
+    return <div className="grid min-h-dvh place-items-center text-sm text-muted-foreground">Loading…</div>;
+  }
+
   return (
     <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route path="/project/:projectId" component={ProjectBoard} />
+      <Route path="/signin">{user ? <Redirect to="/" /> : <SignIn />}</Route>
+      <Route path="/signup">{user ? <Redirect to="/" /> : <SignUp />}</Route>
+      <Route path="/">{user ? <Dashboard /> : <Landing />}</Route>
+      <Route path="/project/:projectId">{user ? <ProjectBoard /> : <Redirect to="/signin" />}</Route>
       <Route component={NotFound} />
     </Switch>
   );
