@@ -18,8 +18,9 @@ import {
   getListProjectMembersQueryKey
 } from '@workspace/api-client-react';
 import type { Member, Task, TaskInputStatus, TaskUpdateStatus, Project } from '@workspace/api-client-react';
-import { ArrowLeft, ArrowRight, Check, LayoutDashboard, MoreHorizontal, Plus, Send, Settings2, Users, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Check, LayoutDashboard, LogOut, MoreHorizontal, Plus, Send, Settings2, Users, X } from 'lucide-react';
 import { memo, useMemo, useState } from 'react';
+import { signOutRequest } from '@/lib/auth';
 import { Link, Route, Switch, Router as WouterRouter, useLocation, useParams } from 'wouter';
 import NotFound from '@/pages/not-found';
 import Landing from '@/pages/landing';
@@ -53,7 +54,8 @@ function Avatar({ initials, className = '' }: { initials?: string | null; classN
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { data: me } = useGetMe();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
+  const logout = async () => { await signOutRequest(); window.location.href = '/'; };
   const nav = [{ href: '/', label: 'Overview', icon: LayoutDashboard }];
   return (
     <div className="shell">
@@ -76,6 +78,7 @@ function Shell({ children }: { children: React.ReactNode }) {
               <div className="profile-email">{me?.email || 'Personal workspace'}</div>
             </div>
           </div>
+          <button className="button ghost" style={{ marginTop: 10, width: '100%', justifyContent: 'flex-start' }} onClick={logout} data-testid="button-logout"><LogOut size={14} /> Log out</button>
         </div>
       </aside>
       <main className="main">
