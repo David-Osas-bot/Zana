@@ -8,19 +8,28 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
+// Enable CORS using the imported cors package
+app.use(
+  cors({
+    origin: "http://localhost:3000",
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  })
+);
+
 app.use(
   pinoHttp({
     logger,
     serializers: {
       req(req) {
-        return { id: req.id, method: req.method, url: req.url?.split("?")[0] };
-      },
-      res(res) {
-        return { statusCode: res.statusCode };
+        return { id: req.id, method: req.method, url: req.url };
       },
     },
-  }),
+  })
 );
+
+// Continue with cookieParser, route setup, etc.
 
 const allowedOrigins = (process.env.CLIENT_ORIGIN ?? "http://localhost:5173")
   .split(",")

@@ -29,6 +29,18 @@ import SignUp from '@/pages/signup';
 import { useSession } from '@/hooks/use-session';
 import { Redirect } from 'wouter';
 
+const relative = (dateStr: string | Date) => {
+  if (!dateStr) return "";
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffInMs = now.getTime() - date.getTime();
+  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+
+  if (diffInDays === 0) return "Today";
+  if (diffInDays === 1) return "Yesterday";
+  return `${diffInDays}d ago`;
+};
+
 const queryClient = new QueryClient();
 type Modal = 'project' | 'task' | 'members' | 'invite' | null;
 const columns: { key: TaskInputStatus; label: string }[] = [
@@ -378,6 +390,67 @@ function MembersModal({ projectId, members, close }: { projectId: string; member
     });
   };
 
+  //   return (
+  //     <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && close()}>
+  //       <div className="modal" role="dialog">
+  //         <div className="modal-head">
+  //           <div>
+  //             <h2>Project members</h2>
+  //             <p className="modal-subtitle">Keep the right people close to the work.</p>
+  //           </div>
+  //           <button className="icon-button" onClick={close} data-testid="button-close-members"><X size={17} /></button>
+  //         </div>
+  //         <div className="field">
+  //           <label htmlFor="invite-email">Invite by email</label>
+  //           <div style={{ display: 'flex', gap: 7 }}>
+  //             <input id="invite-email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@company.com" data-testid="input-invite-email" />
+  //             <button className="button" disabled={!email.includes('@') || invite.isPending} onClick={submit} data-testid="button-send-invite">
+  //               <Send size={14} />
+  //               {invite.isPending ? 'Sending…' : 'Invite'}
+  //             </button>
+  //           </div>
+  //         </div>
+  //         <div className="member-list">
+  //           {members.length ? (
+  //             members.map(m => (
+  //               <div className="member-row" key={m.id} data-testid={`member-${m.id}`}>
+  //                 <Avatar initials={m.initials} />
+  //                 <div className="member-info">
+  //                   <strong>{m.name}</strong>
+  //                   <span>{m.email}</span>
+  //                 </div>
+  //                 <span className="member-status">{m.status === 'invited' ? 'Invited' : m.role}</span>
+  //               </div>
+  //             ))
+  //           ) : (
+  //             <p className="modal-subtitle">No members yet.</p>
+  //           )}
+  //         </div>
+  //       </div>
+  //     </div>
+  //   );
+  // }
+  const handleRemove = async (memberId: string) => {
+    try {
+      const baseUrl = window.location.port === "3000" ? "http://localhost:3001" : "";
+      const res = await fetch(`${baseUrl}/api/projects/${projectId}/members/${memberId}`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        qc.invalidateQueries({ queryKey: getListProjectMembersQueryKey(projectId) });
+        qc.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
+      } else {
+        const data = await res.json().catch(() => ({}));
+        alert(data.error || "Failed to remove member");
+      }
+    } catch (err) {
+      console.error("Error removing member:", err);
+    }
+  };
+
+  
   return (
     <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && close()}>
       <div className="modal" role="dialog">
@@ -407,7 +480,20 @@ function MembersModal({ projectId, members, close }: { projectId: string; member
                   <strong>{m.name}</strong>
                   <span>{m.email}</span>
                 </div>
-                <span className="member-status">{m.status === 'invited' ? 'Invited' : m.role}</span>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <span className="member-status">{m.status === 'invited' ? 'Invited' : m.role}</span>
+                  {m.role !== 'owner' && (
+                    <button
+                      className="button-link"
+                      onClick={() => handleRemove(m.id)}
+                      style={{ color: '#dc2626', background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '13px' }}
+                      data-testid={`button-remove-${m.id}`}
+                    >
+                      {m.status === 'invited' ? 'Revoke' : 'Remove'}
+                    </button>
+                  )}
+                </div>
               </div>
             ))
           ) : (
@@ -653,17 +739,6 @@ const TaskCard = memo(function TaskCard({ task, onEdit, onDelete, onDragStart, m
     </article>
   );
 });
-
-function relative(date: string) {
-  const d = new Date(date);
-  if (Number.isNaN(d.getTime())) return 'recently';
-  const mins = Math.max(1, Math.floor((Date.now() - d.getTime()) / 60000));
-  if (mins < 60) return `${mins}m ago`;
-  const hours = Math.floor(mins / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  return `${days}d ago`;
-}
 
 function Router() {
   const { user, isLoading } = useSession();
