@@ -1,6 +1,7 @@
 import { Link } from 'wouter';
 import { ArrowRight } from 'lucide-react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
+import { HowItWorks } from '@/components/ui/how-it-works';
 
 export default function Landing() {
     return (
@@ -83,6 +84,8 @@ export default function Landing() {
                 </div>
             </main>
 
+            <HowItWorks />
+            
             <footer className="flex flex-col gap-2 border-t border-border px-6 py-6 text-[10px] font-mono uppercase tracking-wide text-muted-foreground sm:flex-row sm:justify-between sm:px-10">
                 <span>Personal project management, pared back.</span>
                 <span>Black / White / Focus</span>
