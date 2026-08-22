@@ -69,6 +69,7 @@ function Shell({ children }: { children: React.ReactNode }) {
   const [location, setLocation] = useLocation();
   const logout = async () => { await signOutRequest(); window.location.href = '/'; };
   const nav = [{ href: '/', label: 'Overview', icon: LayoutDashboard }];
+
   return (
     <div className="shell">
       <aside className="sidebar">
@@ -100,14 +101,40 @@ function Shell({ children }: { children: React.ReactNode }) {
         </header>
         {children}
       </main>
+
       <nav className="mobile-bar">
         <Link href="/" className={`nav-link ${location === '/' ? 'active' : ''}`} data-testid="link-mobile-overview">
           <LayoutDashboard size={16} /><span>Overview</span>
         </Link>
+        <button
+          className="nav-link"
+          onClick={logout}
+          aria-label="Log out"
+          title="Log out"
+          data-testid="button-mobile-logout"
+          style={{ background: 'none', border: 'none', cursor: 'pointer' }}
+        >
+          <LogOut size={18} />
+        </button>
       </nav>
     </div>
   );
 }
+
+      {/* <nav className="mobile-bar">
+        <Link href="/" className={`nav-link ${location === '/' ? 'active' : ''}`} data-testid="link-mobile-overview">
+          <LayoutDashboard size={16} /><span>Overview</span>
+        </Link>
+        <button
+          type="button"
+          className="nav-link"
+          onClick={logout}
+          data-testid="button-mobile-logout"
+        >
+          <LogOut size={16} />
+          <span>Log out</span>
+        </button>
+      </nav> */}
 
 function LoadingState() {
   return (
