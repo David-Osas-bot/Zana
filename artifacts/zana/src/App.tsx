@@ -390,46 +390,6 @@ function MembersModal({ projectId, members, close }: { projectId: string; member
     });
   };
 
-  //   return (
-  //     <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && close()}>
-  //       <div className="modal" role="dialog">
-  //         <div className="modal-head">
-  //           <div>
-  //             <h2>Project members</h2>
-  //             <p className="modal-subtitle">Keep the right people close to the work.</p>
-  //           </div>
-  //           <button className="icon-button" onClick={close} data-testid="button-close-members"><X size={17} /></button>
-  //         </div>
-  //         <div className="field">
-  //           <label htmlFor="invite-email">Invite by email</label>
-  //           <div style={{ display: 'flex', gap: 7 }}>
-  //             <input id="invite-email" value={email} onChange={e => setEmail(e.target.value)} placeholder="name@company.com" data-testid="input-invite-email" />
-  //             <button className="button" disabled={!email.includes('@') || invite.isPending} onClick={submit} data-testid="button-send-invite">
-  //               <Send size={14} />
-  //               {invite.isPending ? 'Sending…' : 'Invite'}
-  //             </button>
-  //           </div>
-  //         </div>
-  //         <div className="member-list">
-  //           {members.length ? (
-  //             members.map(m => (
-  //               <div className="member-row" key={m.id} data-testid={`member-${m.id}`}>
-  //                 <Avatar initials={m.initials} />
-  //                 <div className="member-info">
-  //                   <strong>{m.name}</strong>
-  //                   <span>{m.email}</span>
-  //                 </div>
-  //                 <span className="member-status">{m.status === 'invited' ? 'Invited' : m.role}</span>
-  //               </div>
-  //             ))
-  //           ) : (
-  //             <p className="modal-subtitle">No members yet.</p>
-  //           )}
-  //         </div>
-  //       </div>
-  //     </div>
-  //   );
-  // }
   const handleRemove = async (memberId: string) => {
     try {
       const baseUrl = window.location.port === "3000" ? "http://localhost:3001" : "";
@@ -450,7 +410,7 @@ function MembersModal({ projectId, members, close }: { projectId: string; member
     }
   };
 
-  
+
   return (
     <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && close()}>
       <div className="modal" role="dialog">
@@ -505,6 +465,51 @@ function MembersModal({ projectId, members, close }: { projectId: string; member
   );
 }
 
+function ConfirmModal({
+  title,
+  description,
+  confirmText = 'Delete',
+  onConfirm,
+  onClose,
+  isPending,
+}: {
+  title: string;
+  description: string;
+  confirmText?: string;
+  onConfirm: () => void;
+  onClose: () => void;
+  isPending?: boolean;
+}) {
+  return (
+    <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && onClose()}>
+      <div className="modal" role="dialog" style={{ maxWidth: 420 }}>
+        <div className="modal-head">
+          <div>
+            <h2>{title}</h2>
+            <p className="modal-subtitle">{description}</p>
+          </div>
+          <button className="icon-button" onClick={onClose} data-testid="button-close-confirm">
+            <X size={17} />
+          </button>
+        </div>
+        <div className="modal-actions" style={{ marginTop: 24 }}>
+          <button className="button secondary" onClick={onClose} data-testid="button-cancel-confirm">
+            Cancel
+          </button>
+          <button
+            className="button"
+            disabled={isPending}
+            onClick={onConfirm}
+            style={{ backgroundColor: '#dc2626', borderColor: '#dc2626', color: '#ffffff' }}
+            data-testid="button-action-confirm"
+          >
+            {isPending ? 'Deleting…' : confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
 function ProjectBoard() {
   const { projectId = '' } = useParams<{ projectId: string }>();
   const board = useGetProject(projectId);
@@ -520,6 +525,10 @@ function ProjectBoard() {
   const [dragging, setDragging] = useState<string | null>(null);
   const [editingProject, setEditingProject] = useState(false);
   const [projectName, setProjectName] = useState('');
+
+  // Confirmation modal states
+  const [confirmDeleteProject, setConfirmDeleteProject] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null); // Added task delete state
 
   const members = useMemo(() => {
     const fetchedMembers = ensureArray<Member>(memberQuery.data);
@@ -537,9 +546,6 @@ function ProjectBoard() {
 
   const project = board.data.project;
 
-  // Optimistic move: update the cached board immediately so the card jumps
-  // to its new column without waiting on the network round-trip, then fire
-  // the real mutation in the background and roll back on failure.
   const move = (task: Task, status: TaskInputStatus) => {
     if (task.status === status) return;
 
@@ -570,15 +576,33 @@ function ProjectBoard() {
   };
 
   const removeProject = () => {
-    if (window.confirm(`Delete ${project.name}? This cannot be undone.`)) {
-      deleteProject.mutate({ projectId }, {
+    setConfirmDeleteProject(true);
+  };
+
+  const handleExecuteDeleteProject = () => {
+    deleteProject.mutate({ projectId }, {
+      onSuccess: () => {
+        qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+        qc.invalidateQueries({ queryKey: getGetOverviewQueryKey() });
+        setLocation('/');
+      }
+    });
+  };
+
+  // Task delete execution handler
+  const handleExecuteDeleteTask = () => {
+    if (!taskToDelete) return;
+
+    deleteTask.mutate(
+      { projectId, taskId: taskToDelete.id },
+      {
         onSuccess: () => {
-          qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
+          qc.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
           qc.invalidateQueries({ queryKey: getGetOverviewQueryKey() });
-          setLocation('/');
-        }
-      });
-    }
+          setTaskToDelete(null);
+        },
+      }
+    );
   };
 
   return (
@@ -659,16 +683,7 @@ function ProjectBoard() {
                     key={task.id}
                     task={task}
                     onEdit={() => { setEditing(task); setModal('task'); }}
-                    onDelete={() => {
-                      if (window.confirm('Delete this task?')) {
-                        deleteTask.mutate({ projectId, taskId: task.id }, {
-                          onSuccess: () => {
-                            qc.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
-                            qc.invalidateQueries({ queryKey: getGetOverviewQueryKey() });
-                          }
-                        });
-                      }
-                    }}
+                    onDelete={() => setTaskToDelete(task)}
                     onDragStart={() => setDragging(task.id)}
                     move={status => move(task, status)}
                   />
@@ -691,12 +706,35 @@ function ProjectBoard() {
 
       {modal === 'task' && <TaskModal projectId={projectId} task={editing} members={members} close={() => setModal(null)} after={() => setModal(null)} />}
       {modal === 'members' && <MembersModal projectId={projectId} members={members} close={() => setModal(null)} />}
+
+      {/* Confirm modal for Project Deletion */}
+      {confirmDeleteProject && (
+        <ConfirmModal
+          title={`Delete "${project.name}"?`}
+          description="This will permanently delete the project and all of its tasks. This action cannot be undone."
+          confirmText="Delete project"
+          isPending={deleteProject.isPending}
+          onConfirm={handleExecuteDeleteProject}
+          onClose={() => setConfirmDeleteProject(false)}
+        />
+      )}
+
+      {/* Confirm modal for Task Deletion */}
+      {taskToDelete && (
+        <ConfirmModal
+          title={`Delete "${taskToDelete.title}"?`}
+          description="This will permanently delete this task from the project. This action cannot be undone."
+          confirmText="Delete task"
+          isPending={deleteTask.isPending}
+          onConfirm={handleExecuteDeleteTask}
+          onClose={() => setTaskToDelete(null)}
+        />
+      )}
     </Shell>
   );
 }
 
-// Memoized so a drag/hover state change elsewhere in the board doesn't
-// re-render every card — only the cards whose own props actually changed.
+// Simplified TaskCard Component
 const TaskCard = memo(function TaskCard({ task, onEdit, onDelete, onDragStart, move }: { task: Task; onEdit: () => void; onDelete: () => void; onDragStart: () => void; move: (status: TaskInputStatus) => void }) {
   return (
     <article className="task-card" draggable onDragStart={onDragStart} data-testid={`card-task-${task.id}`}>
