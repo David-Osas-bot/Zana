@@ -1,81 +1,4 @@
-// import { pgTable, text, timestamp, integer } from "drizzle-orm/pg-core";
-// import { createInsertSchema } from "drizzle-zod";
-// import { z } from "zod/v4";
-
-// export const usersTable = pgTable("zana_users", {
-//   id: text("id").primaryKey(),
-//   name: text("name").notNull(),
-//   email: text("email").notNull().unique(),
-//   initials: text("initials").notNull(),
-//   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-// });
-
-// export const projectsTable = pgTable("zana_projects", {
-//   id: text("id").primaryKey(),
-//   name: text("name").notNull(),
-//   description: text("description").notNull().default(""),
-//   color: text("color").notNull().default("ink"),
-//   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-//   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-// });
-
-// export const projectMembersTable = pgTable("zana_project_members", {
-//   id: text("id").primaryKey(),
-//   projectId: text("project_id").notNull(),
-//   userId: text("user_id"),
-//   email: text("email").notNull(),
-//   name: text("name").notNull(),
-//   initials: text("initials").notNull(),
-//   role: text("role").notNull().default("member"),
-//   status: text("status").notNull().default("active"),
-//   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-// });
-
-// export const tasksTable = pgTable("zana_tasks", {
-//   id: text("id").primaryKey(),
-//   projectId: text("project_id").notNull(),
-//   title: text("title").notNull(),
-//   description: text("description").notNull().default(""),
-//   status: text("status").notNull().default("not_done"),
-//   assigneeId: text("assignee_id"),
-//   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-//   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
-//   position: integer("position").notNull().default(0),
-// });
-
-// export const activityTable = pgTable("zana_activity", {
-//   id: text("id").primaryKey(),
-//   text: text("text").notNull(),
-//   time: text("time").notNull(),
-//   kind: text("kind").notNull(),
-//   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-// });
-
-// export const insertUserSchema = createInsertSchema(usersTable);
-// export const insertProjectSchema = createInsertSchema(projectsTable);
-// export const insertProjectMemberSchema = createInsertSchema(projectMembersTable);
-// export const insertTaskSchema = createInsertSchema(tasksTable);
-// export const insertActivitySchema = createInsertSchema(activityTable);
-
-// export type User = z.infer<typeof insertUserSchema>;
-// export type Project = z.infer<typeof insertProjectSchema>;
-// export type ProjectMember = z.infer<typeof insertProjectMemberSchema>;
-// export type Task = z.infer<typeof insertTaskSchema>;
-// export type Activity = z.infer<typeof insertActivitySchema>;
-
-
-
-
-
-
-
-
-
-
-
 import { pgTable, text, timestamp, integer } from "drizzle-orm/pg-core";
-import { createInsertSchema } from "drizzle-zod";
-import { z } from "zod/v4";
 
 export const usersTable = pgTable("zana_users", {
   id: text("id").primaryKey(),
@@ -83,7 +6,15 @@ export const usersTable = pgTable("zana_users", {
   email: text("email").notNull().unique(),
   initials: text("initials").notNull(),
   passwordHash: text("password_hash").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const sessionsTable = pgTable("zana_sessions", {
+  id: text("id").primaryKey(),
+  userId: text("user_id").notNull().references(() => usersTable.id, { onDelete: "cascade" }),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const projectsTable = pgTable("zana_projects", {
@@ -91,50 +22,39 @@ export const projectsTable = pgTable("zana_projects", {
   name: text("name").notNull(),
   description: text("description").notNull().default(""),
   color: text("color").notNull().default("ink"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const projectMembersTable = pgTable("zana_project_members", {
   id: text("id").primaryKey(),
-  projectId: text("project_id").notNull(),
-  userId: text("user_id"),
+  projectId: text("project_id").notNull().references(() => projectsTable.id, { onDelete: "cascade" }),
+  userId: text("user_id").references(() => usersTable.id, { onDelete: "cascade" }),
   email: text("email").notNull(),
-  name: text("name").notNull(),
-  initials: text("initials").notNull(),
+  name: text("name"),
+  initials: text("initials"),
   role: text("role").notNull().default("member"),
-  status: text("status").notNull().default("active"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  status: text("status").notNull().default("invited"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
 export const tasksTable = pgTable("zana_tasks", {
   id: text("id").primaryKey(),
-  projectId: text("project_id").notNull(),
+  projectId: text("project_id").notNull().references(() => projectsTable.id, { onDelete: "cascade" }),
   title: text("title").notNull(),
   description: text("description").notNull().default(""),
   status: text("status").notNull().default("not_done"),
   assigneeId: text("assignee_id"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
   position: integer("position").notNull().default(0),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const activityTable = pgTable("zana_activity", {
   id: text("id").primaryKey(),
+  projectId: text("project_id").notNull().references(() => projectsTable.id, { onDelete: "cascade" }),
   text: text("text").notNull(),
-  time: text("time").notNull(),
+  time: text("time").notNull().default("Just now"),
   kind: text("kind").notNull(),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
 });
-
-export const insertUserSchema = createInsertSchema(usersTable);
-export const insertProjectSchema = createInsertSchema(projectsTable);
-export const insertProjectMemberSchema = createInsertSchema(projectMembersTable);
-export const insertTaskSchema = createInsertSchema(tasksTable);
-export const insertActivitySchema = createInsertSchema(activityTable);
-
-export type User = z.infer<typeof insertUserSchema>;
-export type Project = z.infer<typeof insertProjectSchema>;
-export type ProjectMember = z.infer<typeof insertProjectMemberSchema>;
-export type Task = z.infer<typeof insertTaskSchema>;
-export type Activity = z.infer<typeof insertActivitySchema>;
