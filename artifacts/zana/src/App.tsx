@@ -553,7 +553,7 @@ function ProjectBoard() {
   const [editingProject, setEditingProject] = useState(false);
   const [projectName, setProjectName] = useState('');
 
-  // Confirmation modal states
+  // Confirmation modal's states
   const [confirmDeleteProject, setConfirmDeleteProject] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<Task | null>(null); // Added task delete state
 
