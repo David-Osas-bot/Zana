@@ -1,3 +1,5 @@
+// File: artifacts/zana/src/App.tsx
+
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import {
   useCreateInvite,
@@ -19,7 +21,7 @@ import {
 } from '@workspace/api-client-react';
 import type { Member, Task, TaskInputStatus, TaskUpdateStatus, Project } from '@workspace/api-client-react';
 import { ArrowLeft, ArrowRight, Check, LayoutDashboard, LogOut, MoreHorizontal, Plus, Send, Settings2, Users, X } from 'lucide-react';
-import { memo, useMemo, useState } from 'react';
+import { memo, useMemo, useState, useEffect } from 'react';
 import { signOutRequest } from '@/lib/auth';
 import { Link, Route, Switch, Router as WouterRouter, useLocation, useParams } from 'wouter';
 import NotFound from '@/pages/not-found';
@@ -28,18 +30,7 @@ import SignIn from '@/pages/signin';
 import SignUp from '@/pages/signup';
 import { useSession } from '@/hooks/use-session';
 import { Redirect } from 'wouter';
-
-const relative = (dateStr: string | Date) => {
-  if (!dateStr) return "";
-  const date = new Date(dateStr);
-  const now = new Date();
-  const diffInMs = now.getTime() - date.getTime();
-  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
-
-  if (diffInDays === 0) return "Today";
-  if (diffInDays === 1) return "Yesterday";
-  return `${diffInDays}d ago`;
-};
+import { formatTimeAgo } from "./lib/utils";
 
 const queryClient = new QueryClient();
 type Modal = 'project' | 'task' | 'members' | 'invite' | null;
@@ -120,21 +111,6 @@ function Shell({ children }: { children: React.ReactNode }) {
     </div>
   );
 }
-
-      {/* <nav className="mobile-bar">
-        <Link href="/" className={`nav-link ${location === '/' ? 'active' : ''}`} data-testid="link-mobile-overview">
-          <LayoutDashboard size={16} /><span>Overview</span>
-        </Link>
-        <button
-          type="button"
-          className="nav-link"
-          onClick={logout}
-          data-testid="button-mobile-logout"
-        >
-          <LogOut size={16} />
-          <span>Log out</span>
-        </button>
-      </nav> */}
 
 function LoadingState() {
   return (
@@ -220,6 +196,16 @@ function Dashboard() {
   const [, setLocation] = useLocation();
   const [modal, setModal] = useState<Modal>(null);
 
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      // Refreshes all active dashboard data every minute
+      qc.invalidateQueries();
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [qc]);
+
   const projectList = useMemo(() => ensureArray<Project>(projects.data), [projects.data]);
 
   if (overview.isLoading || projects.isLoading) return <Shell><LoadingState /></Shell>;
@@ -270,7 +256,7 @@ function Dashboard() {
                   <p>{project.description || 'A focused space for the work ahead.'}</p>
                   <div className="project-meta">
                     <span>{project.taskCount} {project.taskCount === 1 ? 'task' : 'tasks'}</span>
-                    <span>{relative(project.updatedAt)}</span>
+                    <span>{formatTimeAgo(project.updatedAt)}</span>
                   </div>
                 </Link>
               ))}
@@ -297,7 +283,7 @@ function Dashboard() {
                     <span className="activity-mark" />
                     <div>
                       <div className="activity-text">{a.text}</div>
-                      <span className="activity-time">{relative(a.time)}</span>
+                      <span className="activity-time">{formatTimeAgo(a.time)}</span>
                     </div>
                   </div>
                 ))}
@@ -437,7 +423,6 @@ function MembersModal({ projectId, members, close }: { projectId: string; member
     }
   };
 
-
   return (
     <div className="modal-backdrop" onMouseDown={e => e.target === e.currentTarget && close()}>
       <div className="modal" role="dialog">
@@ -537,6 +522,7 @@ function ConfirmModal({
     </div>
   );
 }
+
 function ProjectBoard() {
   const { projectId = '' } = useParams<{ projectId: string }>();
   const board = useGetProject(projectId);
@@ -553,9 +539,8 @@ function ProjectBoard() {
   const [editingProject, setEditingProject] = useState(false);
   const [projectName, setProjectName] = useState('');
 
-  // Confirmation modal's states
   const [confirmDeleteProject, setConfirmDeleteProject] = useState(false);
-  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null); // Added task delete state
+  const [taskToDelete, setTaskToDelete] = useState<Task | null>(null);
 
   const members = useMemo(() => {
     const fetchedMembers = ensureArray<Member>(memberQuery.data);
@@ -616,7 +601,6 @@ function ProjectBoard() {
     });
   };
 
-  // Task delete execution handler
   const handleExecuteDeleteTask = () => {
     if (!taskToDelete) return;
 
@@ -734,7 +718,6 @@ function ProjectBoard() {
       {modal === 'task' && <TaskModal projectId={projectId} task={editing} members={members} close={() => setModal(null)} after={() => setModal(null)} />}
       {modal === 'members' && <MembersModal projectId={projectId} members={members} close={() => setModal(null)} />}
 
-      {/* Confirm modal for Project Deletion */}
       {confirmDeleteProject && (
         <ConfirmModal
           title={`Delete "${project.name}"?`}
@@ -746,7 +729,6 @@ function ProjectBoard() {
         />
       )}
 
-      {/* Confirm modal for Task Deletion */}
       {taskToDelete && (
         <ConfirmModal
           title={`Delete "${taskToDelete.title}"?`}
@@ -761,7 +743,6 @@ function ProjectBoard() {
   );
 }
 
-// Simplified TaskCard Component
 const TaskCard = memo(function TaskCard({ task, onEdit, onDelete, onDragStart, move }: { task: Task; onEdit: () => void; onDelete: () => void; onDragStart: () => void; move: (status: TaskInputStatus) => void }) {
   return (
     <article className="task-card" draggable onDragStart={onDragStart} data-testid={`card-task-${task.id}`}>
@@ -773,64 +754,44 @@ const TaskCard = memo(function TaskCard({ task, onEdit, onDelete, onDragStart, m
       </div>
       {task.description && <p className="task-description">{task.description}</p>}
       <div className="task-footer">
-        <span className="task-date">{relative(task.updatedAt)}</span>
+        <span className="task-date">{formatTimeAgo(task.updatedAt)}</span>
         {task.assigneeId ? (
           <span className="task-assignee">
             <Avatar initials={task.assigneeInitials} />{task.assigneeName?.split(' ')[0]}
           </span>
-        ) : (
-          <span className="task-assignee">Unassigned</span>
-        )}
-      </div>
-      <div style={{ display: 'flex', gap: 3, marginTop: 9, borderTop: '1px solid hsl(var(--border))', paddingTop: 8 }}>
-        <button className="button ghost" onClick={onEdit} data-testid={`button-open-task-${task.id}`}>Edit</button>
-        {task.status !== 'not_done' && (
-          <button className="button ghost" onClick={() => move('not_done')} data-testid={`button-move-not-done-${task.id}`}>
-            <ArrowLeft size={12} />
-          </button>
-        )}
-        {task.status !== 'doing' && (
-          <button className="button ghost" onClick={() => move('doing')} data-testid={`button-move-doing-${task.id}`}>Doing</button>
-        )}
-        {task.status !== 'done' && (
-          <button className="button ghost" onClick={() => move('done')} data-testid={`button-move-done-${task.id}`}>
-            <Check size={12} />
-          </button>
-        )}
-        <button className="button ghost" style={{ marginLeft: 'auto' }} onClick={onDelete} data-testid={`button-delete-task-${task.id}`}>
-          <X size={12} />
-        </button>
+        ) : null}
       </div>
     </article>
   );
 });
-
-function Router() {
+function AppContent() {
   const { user, isLoading } = useSession();
 
   if (isLoading) {
-    return <div className="grid min-h-dvh place-items-center text-sm text-muted-foreground">Loading…</div>;
+    return <div className="loading-screen"><div className="spinner" /></div>;
   }
 
   return (
-    <Switch>
-      <Route path="/signin">{user ? <Redirect to="/" /> : <SignIn />}</Route>
-      <Route path="/signup">{user ? <Redirect to="/" /> : <SignUp />}</Route>
-      <Route path="/">{user ? <Dashboard /> : <Landing />}</Route>
-      <Route path="/project/:projectId">{user ? <ProjectBoard /> : <Redirect to="/signin" />}</Route>
-      <Route component={NotFound} />
-    </Switch>
+    <WouterRouter>
+      <Switch>
+        <Route path="/">
+          {user ? <Dashboard /> : <Landing />}
+        </Route>
+        <Route path="/signin" component={SignIn} />
+        <Route path="/signup" component={SignUp} />
+        <Route path="/project/:projectId">
+          {user ? <ProjectBoard /> : <Redirect to="/signin" />}
+        </Route>
+        <Route component={NotFound} />
+      </Switch>
+    </WouterRouter>
   );
 }
 
-function App() {
+export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, '')}>
-        <Router />
-      </WouterRouter>
+      <AppContent />
     </QueryClientProvider>
   );
 }
-
-export default App;

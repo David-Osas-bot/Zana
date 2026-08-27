@@ -119,7 +119,7 @@ router.get("/overview", async (req, res): Promise<void> => {
     openTaskCount: tasks.filter((task) => task.status !== "done").length,
     completedTaskCount: tasks.filter((task) => task.status === "done").length,
     memberCount: new Set(members.map((member) => member.userId ?? member.email)).size,
-    activities: activities.map((activity) => ({ id: activity.id, text: activity.text, time: activity.time, kind: activity.kind as "task" | "project" | "member" })),
+    activities: activities.map((activity) => ({ id: activity.id, text: activity.text, time: iso(activity.createdAt), kind: activity.kind as "task" | "project" | "member" })),
   }));
 });
 
