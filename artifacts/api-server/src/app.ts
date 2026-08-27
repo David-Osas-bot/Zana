@@ -8,10 +8,16 @@ import { logger } from "./lib/logger";
 
 const app: Express = express();
 
-// Enable CORS using the imported cors package
+const allowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "https://zana-zana.vercel.app",
+  ...(process.env.CLIENT_ORIGIN ? process.env.CLIENT_ORIGIN.split(",").map((o) => o.trim()) : [])
+];
+
 app.use(
   cors({
-    origin: "http://localhost:3000",
+    origin: allowedOrigins,
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
@@ -29,13 +35,6 @@ app.use(
   })
 );
 
-// Continue with cookieParser, route setup, etc.
-
-const allowedOrigins = (process.env.CLIENT_ORIGIN ?? "http://localhost:5173")
-  .split(",")
-  .map((origin) => origin.trim());
-
-app.use(cors({ origin: allowedOrigins, credentials: true }));
 app.use(cookieParser());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
