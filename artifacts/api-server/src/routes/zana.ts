@@ -397,25 +397,46 @@ router.post("/projects/:projectId/invites", async (req, res): Promise<void> => {
     return;
   }
 
-  const name = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
-  const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "NA";
-  const member = { id: randomUUID(), projectId: params.data.projectId, userId: null, email, name, initials, role: "member", status: "invited" };
+  // const name = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  // const initials = name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "NA";
+  // const member = { id: randomUUID(), projectId: params.data.projectId, userId: null, email, name, initials, role: "member", status: "invited" };
+  // await db.insert(projectMembersTable).values(member);
+  const [existingUser] = await db.select().from(usersTable).where(eq(usersTable.email, email));
+
+  const name = existingUser?.name ?? email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const initials = existingUser?.initials ?? (name.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]?.toUpperCase()).join("") || "NA");
+
+  const member = {
+    id: randomUUID(),
+    projectId: params.data.projectId,
+    userId: existingUser?.id ?? null,
+    email,
+    name,
+    initials,
+    role: "member",
+    status: existingUser ? "active" : "invited",
+  };
   await db.insert(projectMembersTable).values(member);
   await addActivity(params.data.projectId, `${membership.name} invited ${email}`, "member");
 
   if (resend) {
+    // Existing users can jump straight into the project.
+    // New users go through signup, carrying the project id so we can redirect them after account creation.
+    const inviteUrl = existingUser
+      ? `${CLIENT_ORIGIN}/project/${project.id}`
+      : `${CLIENT_ORIGIN}/signup?invite=${project.id}`;
+
     try {
       await resend.emails.send({
         from: FROM_EMAIL,
         to: email,
         subject: `${membership.name} invited you to ${project.name} on Zana`,
-        html: `<p>${membership.name} invited you to collaborate on <strong>${project.name}</strong> on Zana.</p><p>Sign up at <a href="${CLIENT_ORIGIN}">${CLIENT_ORIGIN}</a> using this email address to join automatically.</p>`,
+        html: `<p>${membership.name} invited you to collaborate on <strong>${project.name}</strong> on Zana.</p><p><a href="${inviteUrl}">Open ${project.name} on Zana</a></p>`,
       });
     } catch (err) {
       req.log?.error({ err }, "Failed to send invite email");
     }
   }
-
   res.status(201).json(CreateInviteResponse.parse(member));
 });
 

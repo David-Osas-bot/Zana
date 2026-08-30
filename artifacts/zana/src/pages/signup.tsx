@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'wouter';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { signUp } from '@/lib/auth';
@@ -13,6 +13,17 @@ export default function SignUp() {
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
 
+  // If this signup came from a project invite link (?invite=<projectId>),
+  // remember the project so we can drop the person straight into it
+  // instead of the generic dashboard once their account is created.
+  const [inviteProjectId, setInviteProjectId] = useState<string | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const invite = params.get('invite');
+    if (invite) setInviteProjectId(invite);
+  }, []);
+
   const submit = async () => {
     if (!name || !email || password.length < 8) return;
     setPending(true);
@@ -20,7 +31,7 @@ export default function SignUp() {
     try {
       await signUp(name, email, password);
       await invalidateSession();
-      setLocation('/');
+      setLocation(inviteProjectId ? `/project/${inviteProjectId}` : '/');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Something went wrong.');
     } finally {
@@ -49,7 +60,9 @@ export default function SignUp() {
           <div className="mb-6 flex flex-col items-center text-center">
             <span className="mb-4 grid h-11 w-11 place-items-center rounded-xl bg-primary font-mono text-sm text-primary-foreground">za</span>
             <h2 className="text-xl font-extrabold tracking-tight">Create your account</h2>
-            <p className="mt-1 text-xs text-muted-foreground">A quieter way to move projects forward</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {inviteProjectId ? "You're joining a project on Zana" : 'A quieter way to move projects forward'}
+            </p>
           </div>
 
           {error && (
