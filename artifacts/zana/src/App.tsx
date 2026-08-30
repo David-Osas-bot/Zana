@@ -1,5 +1,3 @@
-// File: artifacts/zana/src/App.tsx
-
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import {
   useCreateInvite,
@@ -22,6 +20,7 @@ import {
 import type { Member, Task, TaskInputStatus, TaskUpdateStatus, Project } from '@workspace/api-client-react';
 import { ArrowLeft, ArrowRight, Check, LayoutDashboard, LogOut, MoreHorizontal, Plus, Send, Settings2, Users, X } from 'lucide-react';
 import { memo, useMemo, useState, useEffect } from 'react';
+import { Pie, PieChart, Label } from 'recharts';
 import { signOutRequest } from '@/lib/auth';
 import { Link, Route, Switch, Router as WouterRouter, useLocation, useParams } from 'wouter';
 import NotFound from '@/pages/not-found';
@@ -31,6 +30,12 @@ import SignUp from '@/pages/signup';
 import { useSession } from '@/hooks/use-session';
 import { Redirect } from 'wouter';
 import { formatTimeAgo } from "./lib/utils";
+import {
+  type ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+} from '@/components/ui/chart';
 
 const queryClient = new QueryClient();
 type Modal = 'project' | 'task' | 'members' | 'invite' | null;
@@ -190,6 +195,75 @@ function ProjectModal({ close, onCreated }: { close: () => void; onCreated: (id:
   );
 }
 
+// Monochrome to match Zana's black-and-white visual language.
+const taskChartConfig: ChartConfig = {
+  value: { label: 'Tasks' },
+  open: { label: 'Open', color: '#111111' },
+  completed: { label: 'Completed', color: '#d4d4d4' },
+};
+
+function TaskStatusChart({ open, completed }: { open: number; completed: number }) {
+  const total = open + completed;
+
+  const data = useMemo(
+    () => [
+      { status: 'open', label: 'Open', value: open, fill: 'var(--color-open)' },
+      { status: 'completed', label: 'Completed', value: completed, fill: 'var(--color-completed)' },
+    ],
+    [open, completed],
+  );
+
+  if (total === 0) {
+    return (
+      <div className="empty" style={{ minHeight: 220, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <h3>No tasks yet.</h3>
+        <p>Task status will show up here once you add some.</p>
+      </div>
+    );
+  }
+
+  const completionRate = Math.round((completed / total) * 100);
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 32, flexWrap: 'wrap' }}>
+      <ChartContainer config={taskChartConfig} className="aspect-square max-h-[200px]" style={{ width: 200 }}>
+        <PieChart>
+          <ChartTooltip cursor={false} content={<ChartTooltipContent hideLabel nameKey="label" />} />
+          <Pie data={data} dataKey="value" nameKey="label" innerRadius={62} outerRadius={90} strokeWidth={3} stroke="#fff">
+            <Label
+              content={({ viewBox }) => {
+                if (viewBox && 'cx' in viewBox && 'cy' in viewBox) {
+                  return (
+                    <text x={viewBox.cx} y={viewBox.cy} textAnchor="middle" dominantBaseline="middle">
+                      <tspan x={viewBox.cx} y={viewBox.cy} className="fill-foreground" style={{ fontSize: 26, fontWeight: 800 }}>
+                        {completionRate}%
+                      </tspan>
+                      <tspan x={viewBox.cx} y={(viewBox.cy || 0) + 20} className="fill-muted-foreground" style={{ fontSize: 11 }}>
+                        Completed
+                      </tspan>
+                    </text>
+                  );
+                }
+                return null;
+              }}
+            />
+          </Pie>
+        </PieChart>
+      </ChartContainer>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: '#111111', display: 'inline-block' }} />
+          <span>Open — {open}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <span style={{ width: 10, height: 10, borderRadius: 2, background: '#d4d4d4', display: 'inline-block' }} />
+          <span>Completed — {completed}</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function Dashboard() {
   const overview = useGetOverview();
   const projects = useListProjects();
@@ -211,10 +285,13 @@ function Dashboard() {
   if (overview.isLoading || projects.isLoading) return <Shell><LoadingState /></Shell>;
   if (overview.isError || projects.isError) return <Shell><ErrorState retry={() => { overview.refetch(); projects.refetch(); }} /></Shell>;
 
+  const openTaskCount = overview.data?.openTaskCount ?? 0;
+  const completedTaskCount = overview.data?.completedTaskCount ?? 0;
+
   const stats = [
     { label: 'Projects', value: overview.data?.projectCount ?? projectList.length },
-    { label: 'Open tasks', value: overview.data?.openTaskCount ?? 0 },
-    { label: 'Completed', value: overview.data?.completedTaskCount ?? 0 },
+    { label: 'Open tasks', value: openTaskCount },
+    { label: 'Completed', value: completedTaskCount },
     { label: 'Collaborators', value: overview.data?.memberCount ?? 0 }
   ];
 
@@ -240,6 +317,14 @@ function Dashboard() {
             </div>
           ))}
         </div>
+
+        <section>
+          <div className="section-head">
+            <span className="section-title">Task status</span>
+            <span className="section-count">{openTaskCount + completedTaskCount} total</span>
+          </div>
+          <TaskStatusChart open={openTaskCount} completed={completedTaskCount} />
+        </section>
 
         <section>
           <div className="section-head">
