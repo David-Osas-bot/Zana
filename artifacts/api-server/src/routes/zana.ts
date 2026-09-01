@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, inArray } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-import { Resend } from "resend";
+import nodemailer from "nodemailer";
 import { db, activityTable, projectMembersTable, projectsTable, tasksTable, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/requireAuth";
 import {
@@ -33,9 +33,21 @@ import {
 const router: IRouter = Router();
 router.use(requireAuth);
 
-const resend = process.env.RESEND_API_KEY ? new Resend(process.env.RESEND_API_KEY) : null;
-const FROM_EMAIL = process.env.RESEND_FROM ?? "onboarding@resend.dev";
 const CLIENT_ORIGIN = (process.env.CLIENT_ORIGIN ?? "http://localhost:5173").split(",")[0].trim();
+
+const mailer = process.env.BREVO_SMTP_USER && process.env.BREVO_SMTP_PASS
+  ? nodemailer.createTransport({
+    host: "smtp-relay.brevo.com",
+    port: 587,
+    secure: false, // STARTTLS on port 587
+    auth: {
+      user: process.env.BREVO_SMTP_USER,
+      pass: process.env.BREVO_SMTP_PASS,
+    },
+  })
+  : null;
+
+const FROM_EMAIL = process.env.BREVO_FROM ?? "";
 
 const now = () => new Date();
 const iso = (value: Date | string) => (value instanceof Date ? value.toISOString() : value);
@@ -419,15 +431,13 @@ router.post("/projects/:projectId/invites", async (req, res): Promise<void> => {
   await db.insert(projectMembersTable).values(member);
   await addActivity(params.data.projectId, `${membership.name} invited ${email}`, "member");
 
-  if (resend) {
-    // Existing users can jump straight into the project.
-    // New users go through signup, carrying the project id so we can redirect them after account creation.
+  if (mailer && FROM_EMAIL) {
     const inviteUrl = existingUser
       ? `${CLIENT_ORIGIN}/project/${project.id}`
       : `${CLIENT_ORIGIN}/signup?invite=${project.id}`;
 
     try {
-      await resend.emails.send({
+      await mailer.sendMail({
         from: FROM_EMAIL,
         to: email,
         subject: `${membership.name} invited you to ${project.name} on Zana`,
