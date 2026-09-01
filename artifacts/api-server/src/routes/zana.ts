@@ -131,6 +131,57 @@ router.get("/me", async (req, res): Promise<void> => {
   res.json(GetMeResponse.parse(user));
 });
 
+function buildInviteEmail(opts: {
+  inviterName: string;
+  projectName: string;
+  inviteUrl: string;
+  isExistingUser: boolean;
+}) {
+  const { inviterName, projectName, inviteUrl, isExistingUser } = opts;
+  
+  const introLine = isExistingUser
+    ? `${inviterName} has added you to <strong>${projectName}</strong> on Zana. It's now available in your workspace.`
+    : `${inviterName} has invited you to collaborate on <strong>${projectName}</strong>, a project managed on Zana.`;
+
+  const ctaLabel = isExistingUser ? "Open the project" : "Accept invitation";
+
+  const html = `
+  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #111111;">
+    <div style="margin-bottom: 28px;">
+      <span style="display: inline-block; width: 32px; height: 32px; line-height: 32px; text-align: center; background: #111111; color: #ffffff; font-weight: 700; font-size: 13px; border-radius: 8px; font-family: monospace;">za</span>
+      <span style="font-weight: 800; font-size: 16px; margin-left: 8px; letter-spacing: -0.02em;">zana</span>
+    </div>
+
+    <h1 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 12px;">You've been invited to collaborate</h1>
+
+    <p style="font-size: 14px; line-height: 1.6; color: #333333; margin: 0 0 24px;">
+      ${introLine}
+    </p>
+
+    <a href="${inviteUrl}" style="display: inline-block; background: #111111; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 22px; border-radius: 8px; margin-bottom: 28px;">
+      ${ctaLabel} &rarr;
+    </a>
+
+    <p style="font-size: 12px; line-height: 1.6; color: #666666; margin: 0 0 8px;">
+      If the button doesn't work, copy and paste this link into your browser:
+    </p>
+    <p style="font-size: 12px; word-break: break-all; margin: 0 0 28px;">
+      <a href="${inviteUrl}" style="color: #111111;">${inviteUrl}</a>
+    </p>
+
+    <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 0 0 20px;" />
+
+    <p style="font-size: 11px; line-height: 1.6; color: #999999; margin: 0;">
+      Zana is a minimal project management tool. You're receiving this email because
+      <strong>${inviterName}</strong> invited you to a project using your email address.
+      If you weren't expecting this, you can safely ignore this email &mdash; no account will be created without your action.
+    </p>
+  </div>
+  `;
+
+  return html;
+}
+
 router.get("/overview", async (req, res): Promise<void> => {
   const projectIds = await myProjectIds(req.userId!);
   if (projectIds.length === 0) {
@@ -416,6 +467,9 @@ router.post("/projects/:projectId/invites", async (req, res): Promise<void> => {
     return;
   }
 
+  const inviter = await getUser(req.userId!);    
+  const inviterName = inviter?.name ?? membership.name ?? "Your teammate";
+  
   const email = parsed.data.email.trim().toLowerCase();
   const [existing] = await db.select().from(projectMembersTable).where(and(eq(projectMembersTable.projectId, params.data.projectId), eq(projectMembersTable.email, email)));
   if (existing) {
@@ -451,8 +505,13 @@ router.post("/projects/:projectId/invites", async (req, res): Promise<void> => {
   try {
     await sendEmail(
       email,
-      `${membership.name} invited you to ${project.name} on Zana`,
-      `<p>${membership.name} invited you to collaborate on <strong>${project.name}</strong> on Zana.</p><p><a href="${inviteUrl}">Open ${project.name} on Zana</a></p>`,
+      `${inviterName} invited you to ${project.name} on Zana`,
+      buildInviteEmail({
+        inviterName,
+        projectName: project.name,
+        inviteUrl,
+        isExistingUser: !!existingUser,
+      }),
     );
   } catch (err) {
     req.log?.error({ err }, "Failed to send invite email");
