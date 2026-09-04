@@ -106,6 +106,8 @@ export const GetProjectResponse = zod.object({
   "assigneeId": zod.string().nullable(),
   "assigneeName": zod.string().nullable(),
   "assigneeInitials": zod.string().nullable(),
+   "dueDate": zod.string().nullable(),                 
+  "reminderOffsets": zod.array(zod.number()),            
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })),
@@ -188,7 +190,9 @@ export const CreateTaskBody = zod.object({
   "title": zod.string().min(1),
   "description": zod.string().optional(),
   "status": zod.enum(['not_done', 'doing', 'done']),
-  "assigneeId": zod.string().nullish()
+  "assigneeId": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),                   
+  "reminderOffsets": zod.array(zod.number().int().positive()).optional()  
 })
 
 export const CreateTaskResponse = zod.object({
@@ -200,6 +204,8 @@ export const CreateTaskResponse = zod.object({
   "assigneeId": zod.string().nullable(),
   "assigneeName": zod.string().nullable(),
   "assigneeInitials": zod.string().nullable(),
+  "dueDate": zod.string().nullable(),                  
+  "reminderOffsets": zod.array(zod.number()),
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })
@@ -220,7 +226,9 @@ export const UpdateTaskBody = zod.object({
   "title": zod.string().min(1).optional(),
   "description": zod.string().optional(),
   "status": zod.enum(['not_done', 'doing', 'done']).optional(),
-  "assigneeId": zod.string().nullish()
+  "assigneeId": zod.string().nullish(),
+  "dueDate": zod.string().nullish(),                   
+  "reminderOffsets": zod.array(zod.number().int().positive()).optional() 
 })
 
 export const UpdateTaskResponse = zod.object({
@@ -232,6 +240,8 @@ export const UpdateTaskResponse = zod.object({
   "assigneeId": zod.string().nullable(),
   "assigneeName": zod.string().nullable(),
   "assigneeInitials": zod.string().nullable(),
+  "dueDate": zod.string().nullable(),                  
+  "reminderOffsets": zod.array(zod.number()),           
   "createdAt": zod.string(),
   "updatedAt": zod.string()
 })

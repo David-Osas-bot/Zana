@@ -45,10 +45,24 @@ export const tasksTable = pgTable("zana_tasks", {
   description: text("description").notNull().default(""),
   status: text("status").notNull().default("not_done"),
   assigneeId: text("assignee_id"),
+  createdBy: text("created_by"),
   position: integer("position").notNull().default(0),
+  dueDate: timestamp("due_date"),                    // ← NEW
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
+
+// NEW TABLE — one row per reminder offset a task creator adds
+export const taskRemindersTable = pgTable("zana_task_reminders", {
+  id: text("id").primaryKey(),
+  taskId: text("task_id").notNull().references(() => tasksTable.id, { onDelete: "cascade" }),
+  offsetMinutes: integer("offset_minutes").notNull(),   // e.g. 5, 10, 47 — whatever the user typed
+  triggerAt: timestamp("trigger_at").notNull(),         // computed: dueDate - offsetMinutes
+  firedAt: timestamp("fired_at"),
+  ackedAt: timestamp("acked_at"),                       // null until sent; prevents double-send
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 
 export const activityTable = pgTable("zana_activity", {
   id: text("id").primaryKey(),

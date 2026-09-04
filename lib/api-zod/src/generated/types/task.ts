@@ -19,6 +19,8 @@ export interface Task {
   assigneeName: string | null;
   /** @nullable */
   assigneeInitials: string | null;
+  dueDate: string | null;       
+  reminderOffsets: number[];  
   createdAt: string;
   updatedAt: string;
 }

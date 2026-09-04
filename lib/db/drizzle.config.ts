@@ -1,3 +1,4 @@
+import "dotenv/config";  
 /// <reference types="node" />
 import { defineConfig } from "drizzle-kit";
 import fs from "fs";

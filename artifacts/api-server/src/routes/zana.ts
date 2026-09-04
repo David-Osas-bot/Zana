@@ -1,7 +1,7 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lte } from "drizzle-orm";
 import { randomUUID } from "node:crypto";
-import { db, activityTable, projectMembersTable, projectsTable, tasksTable, usersTable } from "@workspace/db";
+import { db, activityTable, projectMembersTable, projectsTable, tasksTable, taskRemindersTable, usersTable } from "@workspace/db";
 import { requireAuth } from "../middlewares/requireAuth";
 import {
   CreateInviteBody,
@@ -104,6 +104,7 @@ async function taskView(task: typeof tasksTable.$inferSelect) {
   const [member] = task.assigneeId
     ? await db.select().from(projectMembersTable).where(and(eq(projectMembersTable.projectId, task.projectId), eq(projectMembersTable.userId, task.assigneeId)))
     : [];
+  const reminders = await db.select().from(taskRemindersTable).where(eq(taskRemindersTable.taskId, task.id));
   return {
     id: task.id,
     projectId: task.projectId,
@@ -113,9 +114,131 @@ async function taskView(task: typeof tasksTable.$inferSelect) {
     assigneeId: task.assigneeId,
     assigneeName: member?.name ?? null,
     assigneeInitials: member?.initials ?? null,
+    dueDate: task.dueDate ? iso(task.dueDate) : null,
+    reminderOffsets: reminders.map((r) => r.offsetMinutes),
     createdAt: iso(task.createdAt),
     updatedAt: iso(task.updatedAt),
   };
+}
+
+// Rebuilds reminder rows for a task whenever its due date or offsets
+// change. Deletes old ones first so edits/removals stay in sync.
+async function syncTaskReminders(taskId: string, dueDate: Date | null, offsets: number[]) {
+  await db.delete(taskRemindersTable).where(eq(taskRemindersTable.taskId, taskId));
+  if (!dueDate || offsets.length === 0) return;
+  const rows = offsets
+    .filter((minutes) => Number.isFinite(minutes) && minutes > 0)
+    .map((minutes) => ({
+      id: randomUUID(),
+      taskId,
+      offsetMinutes: minutes,
+      triggerAt: new Date(dueDate.getTime() - minutes * 60_000),
+    }));
+  if (rows.length) await db.insert(taskRemindersTable).values(rows);
+}
+
+// Builds the reminder email — reuses the same visual language as invites.
+function buildReminderEmail(opts: {
+  recipientName: string;
+  taskTitle: string;
+  projectName: string;
+  dueDate: Date;
+  minutesBefore: number;
+  taskUrl: string;
+}) {
+  const { recipientName, taskTitle, projectName, dueDate, minutesBefore, taskUrl } = opts;
+
+  const whenLabel =
+    minutesBefore >= 1440 ? `${Math.round(minutesBefore / 1440)} day${minutesBefore >= 2880 ? "s" : ""}`
+      : minutesBefore >= 60 ? `${Math.round(minutesBefore / 60)} hour${minutesBefore >= 120 ? "s" : ""}`
+        : `${minutesBefore} minute${minutesBefore === 1 ? "" : "s"}`;
+
+  const dueLabel = dueDate.toLocaleString(undefined, {
+    weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit",
+  });
+
+  return `
+  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; color: #111111;">
+    <div style="margin-bottom: 28px;">
+      <span style="display: inline-block; width: 32px; height: 32px; line-height: 32px; text-align: center; background: #111111; color: #ffffff; font-weight: 700; font-size: 13px; border-radius: 8px; font-family: monospace;">za</span>
+      <span style="font-weight: 800; font-size: 16px; margin-left: 8px; letter-spacing: -0.02em;">zana</span>
+    </div>
+
+    <h1 style="font-size: 20px; font-weight: 800; letter-spacing: -0.02em; margin: 0 0 12px;">Due in ${whenLabel}</h1>
+
+    <p style="font-size: 14px; line-height: 1.6; color: #333333; margin: 0 0 6px;">
+      Hi ${recipientName}, a reminder that <strong>${taskTitle}</strong> on <strong>${projectName}</strong> is due:
+    </p>
+    <p style="font-size: 14px; font-weight: 700; margin: 0 0 24px;">${dueLabel}</p>
+
+    <a href="${taskUrl}" style="display: inline-block; background: #111111; color: #ffffff; text-decoration: none; font-weight: 700; font-size: 14px; padding: 12px 22px; border-radius: 8px; margin-bottom: 28px;">
+      Open task &rarr;
+    </a>
+
+    <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 0 0 20px;" />
+
+    <p style="font-size: 11px; line-height: 1.6; color: #999999; margin: 0;">
+      You're receiving this because you're the assignee (or creator) of this task on Zana.
+    </p>
+  </div>
+  `;
+}
+
+// Checks for due reminders and fires them — email + marks for in-app pickup.
+// Runs on an interval from server startup (see bottom of this file).
+async function processDueReminders() {
+  const dueReminders = await db
+    .select()
+    .from(taskRemindersTable)
+    .where(and(lte(taskRemindersTable.triggerAt, now()), isNull(taskRemindersTable.firedAt)));
+
+  for (const reminder of dueReminders) {
+    try {
+      const [task] = await db.select().from(tasksTable).where(eq(tasksTable.id, reminder.taskId));
+      if (!task || !task.dueDate) {
+        await db.update(taskRemindersTable).set({ firedAt: now() }).where(eq(taskRemindersTable.id, reminder.id));
+        continue;
+      }
+
+      // Recipient: assignee if set, otherwise whoever created the task.
+      const recipientId = task.assigneeId ?? task.createdBy;
+      if (!recipientId) {
+        await db.update(taskRemindersTable).set({ firedAt: now() }).where(eq(taskRemindersTable.id, reminder.id));
+        continue;
+      }
+      const recipient = await getUser(recipientId);
+      if (!recipient) {
+        await db.update(taskRemindersTable).set({ firedAt: now() }).where(eq(taskRemindersTable.id, reminder.id));
+        continue;
+      }
+
+      const [project] = await db.select().from(projectsTable).where(eq(projectsTable.id, task.projectId));
+      const taskUrl = `${CLIENT_ORIGIN}/project/${task.projectId}`;
+
+      try {
+        await sendEmail(
+          recipient.email,
+          `Reminder: "${task.title}" is due soon`,
+          buildReminderEmail({
+            recipientName: recipient.name,
+            taskTitle: task.title,
+            projectName: project?.name ?? "your project",
+            dueDate: task.dueDate,
+            minutesBefore: reminder.offsetMinutes,
+            taskUrl,
+          }),
+        );
+      } catch (err) {
+        console.error("Failed to send reminder email", err);
+      }
+
+      // Marking firedAt also makes this reminder show up in the in-app
+      // inbox — see GET /reminders/inbox below.
+      await db.update(taskRemindersTable).set({ firedAt: now() }).where(eq(taskRemindersTable.id, reminder.id));
+    } catch (err) {
+      console.error("Failed to process reminder", reminder.id, err);
+    }
+  }
 }
 
 async function addActivity(projectId: string, text: string, kind: "task" | "project" | "member") {
@@ -138,7 +261,7 @@ function buildInviteEmail(opts: {
   isExistingUser: boolean;
 }) {
   const { inviterName, projectName, inviteUrl, isExistingUser } = opts;
-  
+
   const introLine = isExistingUser
     ? `${inviterName} has added you to <strong>${projectName}</strong> on Zana. It's now available in your workspace.`
     : `${inviterName} has invited you to collaborate on <strong>${projectName}</strong>, a project managed on Zana.`;
@@ -397,11 +520,14 @@ router.post("/projects/:projectId/tasks", async (req, res): Promise<void> => {
     description: parsed.data.description ?? "",
     status: parsed.data.status,
     assigneeId: parsed.data.assigneeId ?? null,
+    createdBy: req.userId!,
+    dueDate: parsed.data.dueDate ? new Date(parsed.data.dueDate) : null,
     createdAt: timestamp,
     updatedAt: timestamp,
     position: 0,
   };
   await db.insert(tasksTable).values(task);
+  await syncTaskReminders(task.id, task.dueDate, parsed.data.reminderOffsets ?? []);
   await db.update(projectsTable).set({ updatedAt: timestamp }).where(eq(projectsTable.id, task.projectId));
   await addActivity(task.projectId, `${membership.name} created ${task.title}`, "task");
 
@@ -425,7 +551,19 @@ router.patch("/projects/:projectId/tasks/:taskId", async (req, res): Promise<voi
     res.status(404).json({ error: "Task not found" });
     return;
   }
-  const [task] = await db.update(tasksTable).set({ ...parsed.data, updatedAt: now() }).where(eq(tasksTable.id, existing.id)).returning();
+  const { reminderOffsets, dueDate: dueDateInput, ...taskFields } = parsed.data;
+  const updatePayload: Record<string, unknown> = { ...taskFields, updatedAt: now() };
+  if (dueDateInput !== undefined) {
+    updatePayload.dueDate = dueDateInput ? new Date(dueDateInput) : null;
+  }
+  const [task] = await db.update(tasksTable).set(updatePayload).where(eq(tasksTable.id, existing.id)).returning();
+
+  if (dueDateInput !== undefined || reminderOffsets !== undefined) {
+    const finalOffsets = reminderOffsets ??
+      (await db.select().from(taskRemindersTable).where(eq(taskRemindersTable.taskId, task.id))).map((r) => r.offsetMinutes);
+    await syncTaskReminders(task.id, task.dueDate, finalOffsets);
+  }
+
   await db.update(projectsTable).set({ updatedAt: now() }).where(eq(projectsTable.id, existing.projectId));
   res.json(UpdateTaskResponse.parse(await taskView(task)));
 });
@@ -467,9 +605,9 @@ router.post("/projects/:projectId/invites", async (req, res): Promise<void> => {
     return;
   }
 
-  const inviter = await getUser(req.userId!);    
+  const inviter = await getUser(req.userId!);
   const inviterName = inviter?.name ?? membership.name ?? "Your teammate";
-  
+
   const email = parsed.data.email.trim().toLowerCase();
   const [existing] = await db.select().from(projectMembersTable).where(and(eq(projectMembersTable.projectId, params.data.projectId), eq(projectMembersTable.email, email)));
   if (existing) {
@@ -519,5 +657,53 @@ router.post("/projects/:projectId/invites", async (req, res): Promise<void> => {
 
   res.status(201).json(CreateInviteResponse.parse(member));
 });
+
+// In-app reminder inbox: reminders that fired recently, for tasks the
+// current user is the assignee or creator of, that they haven't acked yet.
+router.get("/reminders/inbox", async (req, res): Promise<void> => {
+  const userId = req.userId!;
+  const fired = await db
+    .select()
+    .from(taskRemindersTable)
+    .where(and(isNull(taskRemindersTable.ackedAt), lte(taskRemindersTable.firedAt as any, now())));
+
+  const tasksById = new Map<string, typeof tasksTable.$inferSelect>();
+  const results: { id: string; taskId: string; taskTitle: string; projectId: string; dueDate: string | null; offsetMinutes: number; firedAt: string }[] = [];
+
+  for (const reminder of fired) {
+    if (!reminder.firedAt) continue;
+    let task = tasksById.get(reminder.taskId);
+    if (!task) {
+      const [t] = await db.select().from(tasksTable).where(eq(tasksTable.id, reminder.taskId));
+      if (!t) continue;
+      task = t;
+      tasksById.set(reminder.taskId, t);
+    }
+    const recipientId = task.assigneeId ?? task.createdBy;
+    if (recipientId !== userId) continue;
+    results.push({
+      id: reminder.id,
+      taskId: task.id,
+      taskTitle: task.title,
+      projectId: task.projectId,
+      dueDate: task.dueDate ? iso(task.dueDate) : null,
+      offsetMinutes: reminder.offsetMinutes,
+      firedAt: iso(reminder.firedAt),
+    });
+  }
+
+  res.json(results);
+});
+
+// Marks a fired reminder as seen so it stops appearing in the inbox.
+router.post("/reminders/:id/ack", async (req, res): Promise<void> => {
+  const { id } = req.params;
+  await db.update(taskRemindersTable).set({ ackedAt: now() }).where(eq(taskRemindersTable.id, id));
+  res.sendStatus(204);
+});
+
+setInterval(() => {
+  processDueReminders().catch((err) => console.error("Reminder loop failed", err));
+}, 30_000);
 
 export default router;

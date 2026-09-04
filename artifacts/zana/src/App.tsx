@@ -18,8 +18,8 @@ import {
   getListProjectMembersQueryKey
 } from '@workspace/api-client-react';
 import type { Member, Task, TaskInputStatus, TaskUpdateStatus, Project } from '@workspace/api-client-react';
-import { ArrowLeft, ArrowRight, Check, LayoutDashboard, LogOut, MoreHorizontal, Plus, Send, Settings2, Users, X } from 'lucide-react';
-import { memo, useMemo, useState, useEffect } from 'react';
+import { ArrowLeft, ArrowRight, Check, Clock, LayoutDashboard, LogOut, MoreHorizontal, Plus, Send, Settings2, Users, X } from 'lucide-react';
+import { createContext, memo, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { Pie, PieChart, Label } from 'recharts';
 import { signOutRequest } from '@/lib/auth';
 import { Link, Route, Switch, Router as WouterRouter, useLocation, useParams } from 'wouter';
@@ -45,6 +45,24 @@ const columns: { key: TaskInputStatus; label: string }[] = [
   { key: 'done', label: 'Complete' },
 ];
 
+// Stage 3: due dates + reminders.
+// The generated API client (Task / TaskInputStatus / TaskUpdateStatus) doesn't
+// know about these fields yet, so we extend the type locally and cast the
+// mutation payloads. Field names match the backend contract: `dueDate`
+// (ISO string) and `reminderOffsets` (array of minutes-before, one per
+// reminder the task should fire). Once the generated client picks these up,
+// the `as any` casts below can be dropped.
+type TaskWithReminder = Task & {
+  dueDate?: string | null;
+  reminderOffsets?: number[];
+};
+
+function apiBaseUrl() {
+  // Matches the pattern already used for the raw member-removal fetch below:
+  // dev server on :3000 talks to the API on :3001, everything else is same-origin.
+  return window.location.port === '3000' ? 'http://localhost:3001' : '';
+}
+
 function ensureArray<T>(data: unknown): T[] {
   if (Array.isArray(data)) return data;
   if (data && typeof data === 'object') {
@@ -59,6 +77,184 @@ function ensureArray<T>(data: unknown): T[] {
 function Avatar({ initials, className = '' }: { initials?: string | null; className?: string }) {
   return <span className={`avatar ${className}`} data-testid={`avatar-${initials || 'unassigned'}`}>{initials || '—'}</span>;
 }
+
+// --- Stage 3: self-contained toast system --------------------------------
+// Deliberately dependency-free (no shadcn/radix toast wiring) — plain
+// context + fixed-position container + inline styles, so it works
+// regardless of what's already set up in the shared CSS file.
+
+type ToastItem = { id: string; title: string; message?: string; tone: 'reminder' | 'overdue' };
+
+const ToastContext = createContext<{ push: (t: Omit<ToastItem, 'id'>) => void } | null>(null);
+
+function useToast() {
+  const ctx = useContext(ToastContext);
+  if (!ctx) throw new Error('useToast must be used within ToastProvider');
+  return ctx;
+}
+
+const toastContainerStyle: React.CSSProperties = {
+  position: 'fixed',
+  bottom: 20,
+  right: 20,
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
+  zIndex: 1000,
+  maxWidth: 320,
+  pointerEvents: 'none',
+};
+
+function toastCardStyle(tone: ToastItem['tone']): React.CSSProperties {
+  return {
+    pointerEvents: 'auto',
+    background: tone === 'overdue' ? '#111111' : '#ffffff',
+    color: tone === 'overdue' ? '#ffffff' : '#111111',
+    border: tone === 'overdue' ? 'none' : '1px solid #e5e5e5',
+    borderRadius: 10,
+    padding: '12px 14px',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.16)',
+    animation: 'zana-toast-in 0.2s ease-out',
+  };
+}
+
+function ToastProvider({ children }: { children: React.ReactNode }) {
+  const [toasts, setToasts] = useState<ToastItem[]>([]);
+
+  const push = (t: Omit<ToastItem, 'id'>) => {
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+    setToasts(prev => [...prev, { ...t, id }]);
+    setTimeout(() => {
+      setToasts(prev => prev.filter(x => x.id !== id));
+    }, 8000);
+  };
+
+  const dismiss = (id: string) => setToasts(prev => prev.filter(x => x.id !== id));
+
+  return (
+    <ToastContext.Provider value={{ push }}>
+      {children}
+      <div style={toastContainerStyle}>
+        <style>{`@keyframes zana-toast-in { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+        {toasts.map(t => (
+          <div key={t.id} style={toastCardStyle(t.tone)} data-testid={`toast-${t.id}`}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', gap: 10, alignItems: 'flex-start' }}>
+              <strong style={{ fontSize: 13 }}>{t.title}</strong>
+              <button
+                onClick={() => dismiss(t.id)}
+                aria-label="Dismiss"
+                data-testid={`button-dismiss-toast-${t.id}`}
+                style={{ background: 'none', border: 'none', color: 'inherit', opacity: 0.6, cursor: 'pointer', padding: 0, lineHeight: 0 }}
+              >
+                <X size={13} />
+              </button>
+            </div>
+            {t.message && (
+              <p style={{ margin: '4px 0 0', fontSize: 12, opacity: 0.7 }}>{t.message}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </ToastContext.Provider>
+  );
+}
+
+// The server already decides *when* a reminder fires (see the 30s
+// processDueReminders loop + taskRemindersTable on the backend) and emails
+// it. This just polls the in-app inbox for reminders that have fired but
+// haven't been shown yet, toasts them, and acks them so they don't repeat.
+// App-wide (not scoped to a project board), since the inbox is per-user.
+type InboxReminder = {
+  id: string;
+  taskId: string;
+  taskTitle: string;
+  projectId: string;
+  dueDate: string | null;
+  offsetMinutes: number;
+  firedAt: string;
+};
+
+function useReminderInbox() {
+  const { push } = useToast();
+  const seenRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const res = await fetch(`${apiBaseUrl()}/api/reminders/inbox`, { credentials: 'include' });
+        if (!res.ok || cancelled) return;
+        const reminders: InboxReminder[] = await res.json();
+
+        for (const reminder of reminders) {
+          if (cancelled || seenRef.current.has(reminder.id)) continue;
+          seenRef.current.add(reminder.id);
+
+          const overdue = reminder.dueDate ? new Date(reminder.dueDate).getTime() < Date.now() : false;
+          push({
+            tone: overdue ? 'overdue' : 'reminder',
+            title: overdue ? `Overdue: ${reminder.taskTitle}` : `Due soon: ${reminder.taskTitle}`,
+            message: reminder.dueDate ? new Date(reminder.dueDate).toLocaleString() : undefined,
+          });
+
+          // Ack so it doesn't show again on the next poll or after a reload.
+          fetch(`${apiBaseUrl()}/api/reminders/${reminder.id}/ack`, { method: 'POST', credentials: 'include' }).catch(() => { });
+        }
+      } catch (err) {
+        console.error('Failed to poll reminder inbox', err);
+      }
+    };
+
+    poll();
+    const interval = setInterval(poll, 30_000);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [push]);
+}
+
+function ReminderInboxWatcher() {
+  useReminderInbox();
+  return null;
+}
+
+// Small badge shown on task cards. Grayscale to match the rest of the
+// board — solid black for overdue, light gray for today, outlined for
+// anything further out.
+function DueBadge({ dueDate, status }: { dueDate?: string | null; status: TaskInputStatus }) {
+  if (!dueDate) return null;
+  const due = new Date(dueDate);
+  if (Number.isNaN(due.getTime())) return null;
+
+  const now = new Date();
+  const isDone = status === 'done';
+  const isOverdue = !isDone && due.getTime() < now.getTime();
+  const isToday = due.toDateString() === now.toDateString();
+  const hasTime = due.getHours() !== 0 || due.getMinutes() !== 0;
+
+  const label = due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) +
+    (hasTime ? `, ${due.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}` : '');
+
+  const style: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: 4,
+    fontSize: 11,
+    fontWeight: 600,
+    padding: '2px 7px',
+    borderRadius: 20,
+    background: isOverdue ? '#111111' : isToday ? '#e5e5e5' : '#f5f5f5',
+    color: isOverdue ? '#ffffff' : '#111111',
+    border: isOverdue ? 'none' : '1px solid #e5e5e5',
+  };
+
+  return (
+    <span style={style} data-testid="badge-due-date">
+      <Clock size={11} />
+      {isOverdue ? 'Overdue' : label}
+    </span>
+  );
+}
+// ---------------------------------------------------------------------------
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { data: me } = useGetMe();
@@ -409,24 +605,48 @@ function TaskModal({ projectId, task, members, close, after }: { projectId: stri
   const create = useCreateTask();
   const update = useUpdateTask();
   const qc = useQueryClient();
+  const existing = task as TaskWithReminder | undefined;
+
   const [title, setTitle] = useState(task?.title || '');
   const [description, setDescription] = useState(task?.description || '');
   const [status, setStatus] = useState<TaskInputStatus>(task?.status || 'not_done');
   const [assigneeId, setAssigneeId] = useState(task?.assigneeId || '');
+  // datetime-local wants "YYYY-MM-DDTHH:mm" with no timezone/seconds.
+  const [dueDate, setDueDate] = useState(existing?.dueDate ? existing.dueDate.slice(0, 16) : '');
+  // UI only offers one reminder at a time for now; the backend supports an
+  // array (reminderOffsets) so this still round-trips as a single-item list.
+  const [reminderOffset, setReminderOffset] = useState<number | ''>(
+    existing?.reminderOffsets?.[0] ?? ''
+  );
+  const [error, setError] = useState<string | null>(null);
 
   const pending = create.isPending || update.isPending;
 
   const submit = () => {
     if (!title.trim()) return;
-    const data = { title: title.trim(), description, status, assigneeId: assigneeId || null };
+    setError(null);
+    const data = {
+      title: title.trim(),
+      description,
+      status,
+      assigneeId: assigneeId || null,
+      dueDate: dueDate ? new Date(dueDate).toISOString() : null,
+      reminderOffsets: dueDate && reminderOffset !== '' ? [Number(reminderOffset)] : [],
+      // Cast: dueDate/reminderOffsets aren't in the generated client types yet.
+    } as any;
     const done = () => {
       qc.invalidateQueries({ queryKey: getGetProjectQueryKey(projectId) });
       qc.invalidateQueries({ queryKey: getListProjectsQueryKey() });
       qc.invalidateQueries({ queryKey: getGetOverviewQueryKey() });
       after();
     };
-    if (task) update.mutate({ projectId, taskId: task.id, data: { ...data, status: status as TaskUpdateStatus } }, { onSuccess: done });
-    else create.mutate({ projectId, data }, { onSuccess: done });
+    const fail = (err: unknown) => {
+      console.error('Task save failed:', err);
+      const message = (err as any)?.response?.data?.error || (err as any)?.message || 'Something went wrong. Check the network tab for details.';
+      setError(typeof message === 'string' ? message : 'Could not save this task.');
+    };
+    if (task) update.mutate({ projectId, taskId: task.id, data: { ...data, status: status as TaskUpdateStatus } }, { onSuccess: done, onError: fail });
+    else create.mutate({ projectId, data }, { onSuccess: done, onError: fail });
   };
 
   return (
@@ -460,6 +680,40 @@ function TaskModal({ projectId, task, members, close, after }: { projectId: stri
             {members.filter(m => m.status === 'active').map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
           </select>
         </div>
+        <div className="field">
+          <label htmlFor="task-due">Due date</label>
+          <input
+            id="task-due"
+            type="datetime-local"
+            value={dueDate}
+            onChange={e => {
+              setDueDate(e.target.value);
+              if (!e.target.value) setReminderOffset('');
+            }}
+            data-testid="input-task-due"
+          />
+        </div>
+        {dueDate && (
+          <div className="field">
+            <label htmlFor="task-reminder">Remind me</label>
+            <select
+              id="task-reminder"
+              value={reminderOffset}
+              onChange={e => setReminderOffset(e.target.value === '' ? '' : Number(e.target.value))}
+              data-testid="select-task-reminder"
+            >
+              <option value="">No reminder</option>
+              <option value={15}>15 minutes before</option>
+              <option value={60}>1 hour before</option>
+              <option value={1440}>1 day before</option>
+            </select>
+          </div>
+        )}
+        {error && (
+          <p style={{ color: '#dc2626', fontSize: 13, margin: '4px 0 0' }} data-testid="text-task-error">
+            {error}
+          </p>
+        )}
         <div className="modal-actions">
           <button className="button secondary" onClick={close} data-testid="button-cancel-task">Cancel</button>
           <button className="button" disabled={!title.trim() || pending} onClick={submit} data-testid="button-save-task">
@@ -633,6 +887,7 @@ function ProjectBoard() {
   }, [memberQuery.data, board.data?.members]);
 
   const tasks = board.data?.tasks || [];
+
   const grouped = useMemo(() => columns.reduce((acc, c) => ({
     ...acc,
     [c.key]: tasks.filter(t => t.status === c.key)
@@ -829,6 +1084,7 @@ function ProjectBoard() {
 }
 
 const TaskCard = memo(function TaskCard({ task, onEdit, onDelete, onDragStart, move }: { task: Task; onEdit: () => void; onDelete: () => void; onDragStart: () => void; move: (status: TaskInputStatus) => void }) {
+  const dueDate = (task as TaskWithReminder).dueDate;
   return (
     <article className="task-card" draggable onDragStart={onDragStart} data-testid={`card-task-${task.id}`}>
       <div className="task-card-top">
@@ -838,6 +1094,11 @@ const TaskCard = memo(function TaskCard({ task, onEdit, onDelete, onDragStart, m
         </button>
       </div>
       {task.description && <p className="task-description">{task.description}</p>}
+      {dueDate && (
+        <div style={{ marginTop: 8 }}>
+          <DueBadge dueDate={dueDate} status={task.status} />
+        </div>
+      )}
       <div className="task-footer">
         <span className="task-date">{formatTimeAgo(task.updatedAt)}</span>
         {task.assigneeId ? (
@@ -857,26 +1118,31 @@ function AppContent() {
   }
 
   return (
-    <WouterRouter>
-      <Switch>
-        <Route path="/">
-          {user ? <Dashboard /> : <Landing />}
-        </Route>
-        <Route path="/signin" component={SignIn} />
-        <Route path="/signup" component={SignUp} />
-        <Route path="/project/:projectId">
-          {user ? <ProjectBoard /> : <Redirect to="/signin" />}
-        </Route>
-        <Route component={NotFound} />
-      </Switch>
-    </WouterRouter>
+    <>
+      {user && <ReminderInboxWatcher />}
+      <WouterRouter>
+        <Switch>
+          <Route path="/">
+            {user ? <Dashboard /> : <Landing />}
+          </Route>
+          <Route path="/signin" component={SignIn} />
+          <Route path="/signup" component={SignUp} />
+          <Route path="/project/:projectId">
+            {user ? <ProjectBoard /> : <Redirect to="/signin" />}
+          </Route>
+          <Route component={NotFound} />
+        </Switch>
+      </WouterRouter>
+    </>
   );
 }
 
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AppContent />
+      <ToastProvider>
+        <AppContent />
+      </ToastProvider>
     </QueryClientProvider>
   );
 }
