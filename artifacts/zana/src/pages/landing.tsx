@@ -11,6 +11,7 @@ import NavBar from '../components/landing/Navbar';
 import Hero from '@/components/landing/Hero';
 import ProductCarousel from '@/components/landing/ProductCarousel';
 import FeatureMarquee from '../components/landing/Featuremarquee';
+import Solutions from '@/components/landing/Solutions';
 
 const fadeUp: Variants = {
     hidden: { opacity: 0, y: 28 },
@@ -37,6 +38,9 @@ export default function Landing() {
 
             {/* ---------- Feature marquees ---------- */}
             <FeatureMarquee />
+
+            {/* ---------- Solutions ---------- */}
+            <Solutions />
 
             {/* ---------- Mission statement ---------- */}
             <motion.section
