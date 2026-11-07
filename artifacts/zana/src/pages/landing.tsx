@@ -5,6 +5,12 @@ import { useRef } from 'react';
 import { ThemeToggle } from '@/components/ui/theme-toggle';
 import { HowItWorks } from '@/components/ui/how-it-works';
 import { OrbScene } from '@/components/ui/orb-scene';
+import Logo from '@/components/landing/Logo';
+import { useTheme } from '@/hooks/use-theme';
+import NavBar from '../components/landing/Navbar';
+import Hero from '@/components/landing/Hero';
+import ProductCarousel from '@/components/landing/ProductCarousel';
+import FeatureMarquee from '../components/landing/Featuremarquee';
 
 const fadeUp: Variants = {
     hidden: { opacity: 0, y: 28 },
@@ -21,113 +27,16 @@ export default function Landing() {
     return (
         <div className="min-h-dvh bg-background text-foreground overflow-x-hidden">
             {/* ---------- Nav ---------- */}
-            <header className="sticky top-0 z-30 flex items-center justify-between border-b border-border/60 bg-background/80 px-6 py-4 backdrop-blur sm:px-10">
-                <div className="flex items-center gap-3">
-                    <span className="grid h-8 w-8 place-items-center rounded-lg bg-primary font-mono text-xs font-medium text-primary-foreground">za</span>
-                    <span className="text-lg font-extrabold tracking-tight">zana</span>
-                </div>
-                <nav className="hidden items-center gap-8 text-sm font-medium text-muted-foreground md:flex">
-                    <a href="#features" className="transition-colors hover:text-foreground">Features</a>
-                    <a href="#how-it-works" className="transition-colors hover:text-foreground">How it works</a>
-                </nav>
-                <div className="flex items-center gap-3 sm:gap-4">
-                    <ThemeToggle />
-                    <Link href="/signin" className="text-sm font-semibold hover:underline" data-testid="link-signin-nav">
-                        Sign in
-                    </Link>
-                    <Link
-                        href="/signup"
-                        className="inline-flex items-center gap-1.5 rounded-full bg-primary px-4 py-2 text-xs font-bold text-primary-foreground transition-transform hover:-translate-y-0.5 sm:text-sm"
-                        data-testid="link-create-account-nav"
-                    >
-                        Create account
-                    </Link>
-                </div>
-            </header>
+            <NavBar />
 
             {/* ---------- Hero ---------- */}
-            <section ref={heroRef} className="relative isolate overflow-hidden px-6 pb-24 pt-16 sm:px-10 sm:pt-24">
-                <motion.div style={{ opacity: heroFade }} className="pointer-events-none absolute inset-0 -z-10">
-                    <div className="absolute right-[2%] top-[-20px] h-[380px] w-[380px] opacity-90 sm:right-[4%] sm:top-[10px] sm:h-[480px] sm:w-[480px] lg:h-[560px] lg:w-[560px]">
-                        <OrbScene className="h-full w-full" />
-                    </div>
-                </motion.div>
+            <Hero />
 
-                <motion.p
-                    variants={fadeUp}
-                    initial="hidden"
-                    animate="show"
-                    className="mb-4 font-mono text-[10px] uppercase tracking-[0.2em] text-muted-foreground"
-                >
-                    A quieter way to work
-                </motion.p>
+            {/* ---------- Product carousel ---------- */}
+            <ProductCarousel />
 
-                <motion.h1
-                    style={{ y: headlineY }}
-                    variants={fadeUp}
-                    initial="hidden"
-                    animate="show"
-                    className="max-w-3xl text-5xl font-extrabold leading-[0.95] tracking-tighter sm:text-6xl lg:text-8xl"
-                >
-                    Make room for
-                    <br />
-                    the important work.
-                </motion.h1>
-
-                <motion.p
-                    variants={fadeUp}
-                    initial="hidden"
-                    animate="show"
-                    transition={{ delay: 0.1 }}
-                    className="mt-6 max-w-md text-sm leading-relaxed text-muted-foreground sm:text-base"
-                >
-                    Zana keeps projects focused, tasks moving, and collaboration close to the work — without the noise. Free, forever.
-                </motion.p>
-
-                <motion.div
-                    variants={fadeUp}
-                    initial="hidden"
-                    animate="show"
-                    transition={{ delay: 0.2 }}
-                    className="mt-8 flex flex-wrap items-center gap-5"
-                >
-                    <Link
-                        href="/signup"
-                        className="inline-flex items-center gap-2 rounded-lg bg-primary px-5 py-3 text-sm font-bold text-primary-foreground transition-transform hover:-translate-y-0.5"
-                        data-testid="link-create-account"
-                    >
-                        Create your account
-                        <ArrowRight className="h-4 w-4" />
-                    </Link>
-                    <span className="text-sm text-muted-foreground">
-                        Already have an account?{' '}
-                        <Link href="/signin" className="font-semibold text-foreground underline" data-testid="link-signin-inline">
-                            Sign in
-                        </Link>
-                    </span>
-                </motion.div>
-
-                {/* Stat row — real value props, not fabricated usage numbers */}
-                <motion.div
-                    variants={fadeUp}
-                    initial="hidden"
-                    whileInView="show"
-                    viewport={{ once: true, margin: '-80px' }}
-                    className="mt-16 grid max-w-2xl grid-cols-2 gap-6 border-t border-border pt-8 sm:grid-cols-4"
-                >
-                    {[
-                        { value: 'Free', label: 'Forever' },
-                        { value: '∞', label: 'Projects & tasks' },
-                        { value: '1-click', label: 'Team invites' },
-                        { value: 'B/W', label: 'Focus-first design' },
-                    ].map((stat) => (
-                        <div key={stat.label}>
-                            <div className="text-2xl font-extrabold tracking-tight sm:text-3xl">{stat.value}</div>
-                            <div className="mt-1 text-[11px] uppercase tracking-wide text-muted-foreground">{stat.label}</div>
-                        </div>
-                    ))}
-                </motion.div>
-            </section>
+            {/* ---------- Feature marquees ---------- */}
+            <FeatureMarquee />
 
             {/* ---------- Mission statement ---------- */}
             <motion.section
