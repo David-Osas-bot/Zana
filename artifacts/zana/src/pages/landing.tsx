@@ -6,6 +6,9 @@ import Solutions from '@/components/landing/Solutions';
 import Features from '@/components/landing/features/Features';
 import Workflow from '@/components/landing/workflow/Workflow';
 import Cutomervoices from '@/components/landing/Customervoices';
+import Pricing from '@/components/landing/Pricing';
+import Faq from '@/components/landing/Faq';
+
 
 // .z-page (from the theme CSS) paints the page black or white and flips with the toggle.
 export default function Landing() {
@@ -19,6 +22,8 @@ export default function Landing() {
       <Features />
       <Workflow />
       <Cutomervoices />
+      <Pricing />
+      <Faq />
     </div>
   );
 }
