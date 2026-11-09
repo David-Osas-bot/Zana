@@ -30,7 +30,7 @@ const PLANS: Plan[] = [
         href: '/signup',
         featured: true,
         features: [
-            'Cadence AI',
+            'Zana AI',
             'Unlimited teams & issues',
             'Velocity insights',
             'Roadmaps',
@@ -61,25 +61,27 @@ const SAVINGS_LABEL = 'save 37%';
 // Colors are variables on .pricing-section so the dark theme only overrides them once.
 const css = `
 .pricing-section {
-  --pr-bg: #fbfaf6;
-  --pr-ink: #16190f;
-  --pr-muted: #5b5f55;
-  --pr-card: #fdfdfa;
-  --pr-border: #e6e5de;
-  --pr-accent: #9ccc1f;
-  --pr-accent-ink: #1d2a05;
-  --pr-savings: #3f7d20;
+  --pr-bg: #ffffff;
+  --pr-ink: #0a0a0a;
+  --pr-muted: #5f5f5f;
+  --pr-card: #ffffff;
+  --pr-border: #e5e5e5;
+  --pr-accent: #0a0a0a;
+  --pr-accent-ink: #ffffff;
+  --pr-savings: #0a0a0a;
   background: var(--pr-bg);
   color: var(--pr-ink);
   padding: 5rem 1.5rem 6rem;
 }
 .dark .pricing-section {
-  --pr-bg: #0b0b0b;
-  --pr-ink: #f3f3ee;
-  --pr-muted: #a3a69b;
-  --pr-card: #121212;
-  --pr-border: #2a2b27;
-  --pr-savings: #a6d65a;
+  --pr-accent: #fafafa;
+  --pr-accent-ink: #0a0a0a;
+  --pr-bg: #0a0a0a;
+  --pr-ink: #fafafa;
+  --pr-muted: #a1a1a1;
+  --pr-card: #111111;
+  --pr-border: #262626;
+  --pr-savings: #fafafa;
 }
 
 .pricing-head { text-align: center; max-width: 52rem; margin: 0 auto; }

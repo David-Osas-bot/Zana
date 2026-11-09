@@ -110,23 +110,25 @@ const reducedMotion = () =>
 // Same approach as Pricing.tsx / Solutions.tsx: all styling lives in one block.
 const css = `
 .faq-section {
-  --fq-bg: #fbfaf6;
-  --fq-ink: #16190f;
-  --fq-muted: #5b5f55;
-  --fq-line: #e2e1d9;
-  --fq-card: #fdfdfa;
-  --fq-accent: #9ccc1f;
-  --fq-accent-ink: #1d2a05;
+  --fq-bg: #ffffff;
+  --fq-ink: #0a0a0a;
+  --fq-muted: #5f5f5f;
+  --fq-line: #e5e5e5;
+  --fq-card: #ffffff;
+  --fq-accent: #0a0a0a;
+  --fq-accent-ink: #ffffff;
   background: var(--fq-bg);
   color: var(--fq-ink);
   padding: 5rem 1.5rem 6rem;
 }
 .dark .faq-section {
-  --fq-bg: #0b0b0b;
-  --fq-ink: #f3f3ee;
-  --fq-muted: #a3a69b;
-  --fq-line: #2a2b27;
-  --fq-card: #121212;
+  --fq-accent: #fafafa;
+  --fq-accent-ink: #0a0a0a;
+  --fq-bg: #0a0a0a;
+  --fq-ink: #fafafa;
+  --fq-muted: #a1a1a1;
+  --fq-line: #262626;
+  --fq-card: #111111;
 }
 
 .faq-head { text-align: center; max-width: 48rem; margin: 0 auto; }
