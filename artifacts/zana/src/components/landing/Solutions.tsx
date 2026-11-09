@@ -24,7 +24,7 @@ const sectors: Sector[] = [
         description: 'Break a release into tasks, assign owners and move work across the board without the busywork.',
         tags: ['Boards', 'Assignees', 'Due dates'],
         image: '/landing/solutions/software.jpg',
-        fallback: 'linear-gradient(160deg, #3d4d44 0%, #181c17 100%)',
+        fallback: 'linear-gradient(160deg, #3f3f3f 0%, #0a0a0a 100%)',
     },
     {
         id: 'agencies',
@@ -33,7 +33,7 @@ const sectors: Sector[] = [
         description: 'Give each client a project of its own, invite collaborators by email and get reminded before a deadline slips.',
         tags: ['Projects', 'Invites', 'Reminders'],
         image: '/landing/solutions/agencies.jpg',
-        fallback: 'linear-gradient(160deg, #565546 0%, #1b1b16 100%)',
+        fallback: 'linear-gradient(160deg, #505050 0%, #111111 100%)',
     },
     {
         id: 'startups',
@@ -42,7 +42,7 @@ const sectors: Sector[] = [
         description: 'A light workflow the whole team can pick up quickly, from the launch checklist to weekly operations.',
         tags: ['Overview', 'Boards', 'Team'],
         image: '/landing/solutions/startups.jpg',
-        fallback: 'linear-gradient(160deg, #3c5560 0%, #151b1e 100%)',
+        fallback: 'linear-gradient(160deg, #2d2d2d 0%, #050505 100%)',
     },
     {
         id: 'education',
@@ -51,7 +51,7 @@ const sectors: Sector[] = [
         description: 'Split a project into tasks, assign owners and track progress together until the deadline.',
         tags: ['Tasks', 'Progress', 'Due dates'],
         image: '/landing/solutions/education.jpg',
-        fallback: 'linear-gradient(160deg, #5a4e4e 0%, #1e1919 100%)',
+        fallback: 'linear-gradient(160deg, #464646 0%, #0d0d0d 100%)',
     },
 ];
 
@@ -78,7 +78,7 @@ const css = `
   transition: transform 1.2s cubic-bezier(.22,.61,.36,1), filter .7s ease;
 }
 .sector-shade {
-  background: linear-gradient(to top, rgba(10,14,11,.9) 0%, rgba(10,14,11,.55) 40%, rgba(10,14,11,.08) 72%, rgba(10,14,11,.28) 100%);
+  background: linear-gradient(to top, rgba(0,0,0,.9) 0%, rgba(0,0,0,.55) 40%, rgba(0,0,0,.08) 72%, rgba(0,0,0,.28) 100%);
 }
 .sector-spot {
   opacity: 0;
@@ -97,7 +97,7 @@ const css = `
   transition: background-color .3s ease, color .3s ease, transform .5s cubic-bezier(.22,.61,.36,1);
 }
 .sector-card:hover .sector-arrow,
-.sector-card:focus-visible .sector-arrow { background: #fff; color: #181c17; transform: translate(2px, -2px); }
+.sector-card:focus-visible .sector-arrow { background: #fff; color: #111111; transform: translate(2px, -2px); }
 
 .sector-details { display: grid; grid-template-rows: 1fr; opacity: 1; transition: grid-template-rows .6s cubic-bezier(.22,.61,.36,1), opacity .5s ease; }
 .sector-details > div { min-height: 0; overflow: hidden; }
@@ -161,18 +161,18 @@ export default function Solutions() {
                 {/* Header: title left, short intro right */}
                 <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between lg:gap-16">
                     <div>
-                        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#5f655e]">
+                        <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[color:var(--z-muted)]">
                             Who it&rsquo;s for / {pad(sectors.length)}
                         </p>
                         <h2
                             id="solutions-heading"
-                            className="mt-5 max-w-[18ch] text-[clamp(2rem,4.4vw,3.5rem)] font-semibold leading-[1.05] tracking-[-0.04em] text-[#181c17]"
+                            className="mt-5 max-w-[18ch] text-[clamp(2rem,4.4vw,3.5rem)] font-semibold leading-[1.05] tracking-[-0.04em] text-[color:var(--z-fg)]"
                             style={{ fontFamily: HEADING_FONT }}
                         >
                             Built for the teams that keep work moving.
                         </h2>
                     </div>
-                    <p className="max-w-[26rem] text-[17px] leading-relaxed text-[#5f655e]">
+                    <p className="max-w-[26rem] text-[17px] leading-relaxed text-[color:var(--z-muted)]">
                         From solo freelancers to growing teams, Zana gives every group the same calm setup: one board, clear
                         owners and reminders that keep work on schedule.
                     </p>
@@ -188,7 +188,7 @@ export default function Solutions() {
                                 href="/signup"
                                 data-active={isActive}
                                 data-testid={`card-solution-${s.id}`}
-                                className="sector-card group relative isolate block h-[28rem] overflow-hidden rounded-3xl bg-[#181c17] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#181c17] lg:h-auto"
+                                className="sector-card group relative isolate block h-[28rem] overflow-hidden rounded-3xl border border-[color:var(--z-border)] bg-[#111111] text-white focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[color:var(--z-fg)] lg:h-auto"
                                 style={{ '--i': i, '--grow': isActive ? EXPANDED_GROW : 1 } as CSSProperties}
                                 onPointerEnter={() => setActive(i)}
                                 onFocus={() => setActive(i)}

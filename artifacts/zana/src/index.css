@@ -1072,3 +1072,78 @@ button:disabled {
     margin-top: 26px;
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+/* ---------------------------------------------------------------------------
+   Zana landing theme: plain black and white, light and dark.
+   Paste this at the bottom of src/index.css.
+
+   Dark mode turns on when <html> (or any ancestor) has class="dark" or
+   data-theme="dark". Whatever your use-theme hook sets, one of those two
+   should be true; check <html> in DevTools while you click the toggle.
+--------------------------------------------------------------------------- */
+:root {
+  --z-bg: #ffffff;
+  /* page */
+  --z-fg: #111111;
+  /* main text, primary buttons */
+  --z-muted: #666666;
+  /* secondary text */
+  --z-subtle: #7a7a7a;
+  /* tertiary text, numbers */
+  --z-panel: #f5f5f5;
+  /* big rounded panels (hero, carousel) */
+  --z-surface: #ffffff;
+  /* buttons and frames that sit on a panel */
+  --z-surface-hover: #f0f0f0;
+  --z-row-hover: #ffffff;
+  /* hover background for rows on a panel */
+  --z-border: #e5e5e5;
+  --z-track: #d4d4d4;
+  /* empty progress bars */
+}
+
+.dark,
+[data-theme='dark'] {
+  --z-bg: #000000;
+  --z-fg: #fafafa;
+  --z-muted: #a1a1a1;
+  --z-subtle: #8a8a8a;
+  --z-panel: #111111;
+  --z-surface: #1a1a1a;
+  --z-surface-hover: #262626;
+  --z-row-hover: #1a1a1a;
+  --z-border: #2a2a2a;
+  --z-track: #3a3a3a;
+}
+
+/* Wrap the landing and auth pages in this class. */
+.z-page {
+  background: var(--z-bg);
+  color: var(--z-fg);
+  color-scheme: light;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.dark .z-page,
+[data-theme='dark'] .z-page,
+.z-page[data-theme='dark'] {
+  color-scheme: dark;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .z-page {
+    transition: none;
+  }
+}

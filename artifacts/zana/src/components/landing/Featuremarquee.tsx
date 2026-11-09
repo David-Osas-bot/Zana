@@ -55,7 +55,7 @@ function Copy({ extra }: { extra: boolean }) {
             {items.map(({ icon: Icon, label }) => (
                 <li
                     key={label}
-                    className="flex items-center gap-3 whitespace-nowrap text-[#8a9087] transition-colors duration-200 hover:text-[#181c17]"
+                    className="flex items-center gap-3 whitespace-nowrap text-[color:var(--z-subtle)] transition-colors duration-200 hover:text-[color:var(--z-fg)]"
                 >
                     <Icon size={20} strokeWidth={1.8} aria-hidden />
                     <span className="text-[clamp(1.05rem,1.6vw,1.375rem)] font-medium tracking-[-0.01em]">{label}</span>
@@ -70,7 +70,7 @@ export default function FeatureMarquee() {
         <section aria-label="What Zana includes" className="px-3 py-14 sm:px-5 sm:py-20">
             <style>{css}</style>
 
-            <p className="mb-10 text-center font-mono text-[11px] uppercase tracking-[0.16em] text-[#5f655e]">
+            <p className="mb-10 text-center font-mono text-[11px] uppercase tracking-[0.16em] text-[color:var(--z-muted)]">
                 Everything in one workspace
             </p>
 

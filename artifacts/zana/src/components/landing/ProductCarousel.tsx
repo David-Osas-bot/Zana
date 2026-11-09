@@ -80,9 +80,9 @@ function ControlButton({
             aria-label={label}
             title={label}
             data-testid={testId}
-            className={`inline-flex h-11 w-11 items-center justify-center rounded-full border transition-[transform,background-color] duration-200 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#181c17] ${primary
-                    ? 'border-[#181c17] bg-[#181c17] text-white hover:bg-[#2a302a]'
-                    : 'border-[#dfe4d8] bg-[#fbfcf8] text-[#181c17] hover:bg-white'
+            className={`inline-flex h-11 w-11 items-center justify-center rounded-full border transition-[transform,background-color,opacity] duration-200 active:scale-95 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[color:var(--z-fg)] ${primary
+                    ? 'border-[color:var(--z-fg)] bg-[color:var(--z-fg)] text-[color:var(--z-bg)] hover:opacity-80'
+                    : 'border-[color:var(--z-border)] bg-[color:var(--z-surface)] text-[color:var(--z-fg)] hover:bg-[color:var(--z-surface-hover)]'
                 }`}
         >
             {children}
@@ -220,7 +220,7 @@ export default function ProductCarousel() {
             <style>{`@keyframes zana-tour-progress { from { transform: scaleX(0); } to { transform: scaleX(1); } }`}</style>
 
             <div
-                className="overflow-hidden rounded-[28px] bg-[#edf1ea] py-16 sm:py-20 lg:py-24"
+                className="overflow-hidden rounded-[28px] bg-[color:var(--z-panel)] py-16 sm:py-20 lg:py-24"
                 onPointerEnter={e => { if (e.pointerType === 'mouse') setHovering(true); }}
                 onPointerLeave={() => setHovering(false)}
                 onFocusCapture={onFocusCapture}
@@ -230,23 +230,23 @@ export default function ProductCarousel() {
                 <div className="px-6 sm:px-12 lg:px-[8%]">
                     <div className="mx-auto flex max-w-[1280px] flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
                         <div>
-                            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[#5f655e]">
+                            <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[color:var(--z-muted)]">
                                 Product tour / {pad(count)}
                             </p>
                             <h2
                                 id="product-tour-heading"
-                                className="mt-5 text-[clamp(2rem,4.4vw,3.5rem)] font-semibold leading-[1.05] tracking-[-0.04em] text-[#181c17]"
+                                className="mt-5 text-[clamp(2rem,4.4vw,3.5rem)] font-semibold leading-[1.05] tracking-[-0.04em] text-[color:var(--z-fg)]"
                                 style={{ fontFamily: HEADING_FONT }}
                             >
                                 See how work moves through Zana.
                             </h2>
-                            <p className="mt-5 max-w-[32rem] text-[17px] leading-relaxed text-[#5f655e]">
+                            <p className="mt-5 max-w-[32rem] text-[17px] leading-relaxed text-[color:var(--z-muted)]">
                                 From the first project to the last finished task, it all lives in one quiet workspace.
                             </p>
                         </div>
 
                         <div className="flex items-center gap-2">
-                            <span className="mr-2 font-mono text-[11px] uppercase tracking-[0.16em] text-[#5f655e]" aria-hidden>
+                            <span className="mr-2 font-mono text-[11px] uppercase tracking-[0.16em] text-[color:var(--z-muted)]" aria-hidden>
                                 {pad(index + 1)} / {pad(count)}
                             </span>
                             <ControlButton label="Previous slide" onClick={prev} testId="button-tour-prev">
@@ -297,7 +297,7 @@ export default function ProductCarousel() {
                                         if (swiped.current) { swiped.current = false; return; }
                                         if (!active) go(i);
                                     }}
-                                    className={`relative aspect-[1919/939] overflow-hidden rounded-2xl border border-[#dfe4d8] bg-white shadow-[0_24px_60px_-24px_rgba(24,28,23,0.35)] transition-[opacity,transform] duration-700 ease-[cubic-bezier(0.22,0.61,0.36,1)] motion-reduce:transition-none ${active ? 'scale-100 opacity-100' : 'scale-[0.96] cursor-pointer opacity-40 hover:opacity-60'
+                                    className={`relative aspect-[1919/939] overflow-hidden rounded-2xl border border-[color:var(--z-border)] bg-[color:var(--z-surface)] shadow-[0_24px_60px_-24px_rgba(0,0,0,0.35)] transition-[opacity,transform] duration-700 ease-[cubic-bezier(0.22,0.61,0.36,1)] motion-reduce:transition-none ${active ? 'scale-100 opacity-100' : 'scale-[0.96] cursor-pointer opacity-40 hover:opacity-60'
                                         }`}
                                     style={{ flex: '0 0 var(--w)' }}
                                     data-testid={`slide-${slide.id}`}
@@ -345,27 +345,27 @@ export default function ProductCarousel() {
                                     tabIndex={active ? 0 : -1}
                                     onClick={() => go(i)}
                                     data-testid={`tab-tour-${slide.id}`}
-                                    className="group text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#181c17]"
+                                    className="group text-left focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[color:var(--z-fg)]"
                                 >
-                                    <span className="relative block h-[2px] overflow-hidden rounded-full bg-[#d3d9cc]">
+                                    <span className="relative block h-[2px] overflow-hidden rounded-full bg-[color:var(--z-track)]">
                                         <span
-                                            className="absolute inset-0 origin-left bg-[#181c17]"
+                                            className="absolute inset-0 origin-left bg-[color:var(--z-fg)]"
                                             style={fillStyle}
                                             onAnimationEnd={active && autoplay ? next : undefined}
                                         />
                                     </span>
                                     <span className="mt-4 grid grid-cols-[auto_1fr] gap-x-3">
-                                        <span className="pt-[5px] font-mono text-[11px] tracking-[0.14em] text-[#8a9087]">
+                                        <span className="pt-[5px] font-mono text-[11px] tracking-[0.14em] text-[color:var(--z-subtle)]">
                                             {pad(i + 1)}
                                         </span>
                                         <span
-                                            className={`text-[17px] font-medium leading-snug transition-colors duration-200 ${active ? 'text-[#181c17]' : 'text-[#7a8077] group-hover:text-[#181c17]'
+                                            className={`text-[17px] font-medium leading-snug transition-colors duration-200 ${active ? 'text-[color:var(--z-fg)]' : 'text-[color:var(--z-muted)] group-hover:text-[color:var(--z-fg)]'
                                                 }`}
                                         >
                                             {slide.title}
                                         </span>
                                         <span
-                                            className={`col-start-2 mt-1 text-[15px] leading-relaxed text-[#5f655e] ${active ? 'block' : 'hidden sm:block'
+                                            className={`col-start-2 mt-1 text-[15px] leading-relaxed text-[color:var(--z-muted)] ${active ? 'block' : 'hidden sm:block'
                                                 }`}
                                         >
                                             {slide.description}
