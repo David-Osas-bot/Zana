@@ -6,6 +6,7 @@ import { ReminderInboxWatcher } from '@/features/reminders/use-reminder-inbox';
 import Landing from '@/pages/landing';
 import SignIn from '@/pages/signin';
 import SignUp from '@/pages/signup';
+import Contact from '@/pages/contact';
 import Dashboard from './pages/dashboard';
 import ProjectBoard from '@/pages/project-board';
 import NotFound from '@/pages/not-found';
@@ -29,6 +30,7 @@ function AppRoutes() {
           </Route>
           <Route path="/signin" component={SignIn} />
           <Route path="/signup" component={SignUp} />
+          <Route path="/contact" component={Contact} />
           <Route path="/project/:projectId">
             {user ? <ProjectBoard /> : <Redirect to="/signin" />}
           </Route>
