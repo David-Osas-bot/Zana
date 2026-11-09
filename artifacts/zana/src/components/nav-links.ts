@@ -3,6 +3,7 @@ export const navLinks = [
   { id: 'product-tour', label: 'Product' },
   { id: 'solutions', label: 'Solutions' },
   { id: 'features', label: 'Features' },
+  { id: 'workflow', label: 'Workflow' },
 ] as const;
 
 export function scrollToSection(id: string) {
