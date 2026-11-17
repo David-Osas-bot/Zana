@@ -49,7 +49,9 @@ type AuthLayoutProps = {
 
 // Form on the left, a moving product preview on the right (large screens only).
 export default function AuthLayout({ variant, eyebrow, title, subtitle, children, footer }: AuthLayoutProps) {
-  const { isDark, toggleTheme } = useTheme();
+  const { theme, toggle } = useTheme();
+
+  const isDark = theme === 'dark';
 
   return (
     <div className="z-page min-h-screen">
@@ -59,7 +61,7 @@ export default function AuthLayout({ variant, eyebrow, title, subtitle, children
         <div className="flex min-h-screen flex-col px-6 py-6 sm:px-10">
           <header className={`${COLUMN} flex items-center justify-between`}>
             <Logo />
-            <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
+            <ThemeToggle isDark={isDark} onToggle={toggle} />
           </header>
 
           <main className={`${COLUMN} flex flex-1 flex-col justify-center py-12`}>
