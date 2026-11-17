@@ -6,6 +6,9 @@ import Logo from '@/components/landing/Logo';
 import ThemeToggle from '@/components/landing/ThemeToggle';
 import AuthShowcase from './AuthShowcase';
 
+// Header, form and footer all share this width, so their left and right edges line up.
+const COLUMN = 'mx-auto w-full max-w-[420px]';
+
 const HEADING_FONT = "'Plus Jakarta Sans', 'Inter', system-ui, sans-serif";
 
 const css = `
@@ -54,12 +57,12 @@ export default function AuthLayout({ variant, eyebrow, title, subtitle, children
 
       <div className="grid min-h-screen lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
         <div className="flex min-h-screen flex-col px-6 py-6 sm:px-10">
-          <header className="flex items-center justify-between">
+          <header className={`${COLUMN} flex items-center justify-between`}>
             <Logo />
             <ThemeToggle isDark={isDark} onToggle={toggleTheme} />
           </header>
 
-          <main className="mx-auto flex w-full max-w-[420px] flex-1 flex-col justify-center py-12">
+          <main className={`${COLUMN} flex flex-1 flex-col justify-center py-12`}>
             <Rise n={0}>
               <p className="font-mono text-[11px] uppercase tracking-[0.16em] text-[color:var(--z-muted)]">{eyebrow}</p>
               <h1
@@ -78,13 +81,13 @@ export default function AuthLayout({ variant, eyebrow, title, subtitle, children
             </Rise>
           </main>
 
-          <footer className="flex items-center justify-between text-[13px] text-[color:var(--z-muted)]">
+          <footer className={`${COLUMN} flex items-center justify-between text-[13px] text-[color:var(--z-muted)]`}>
             <Link
               href="/"
               className="inline-flex items-center gap-1.5 transition-colors hover:text-[color:var(--z-fg)]"
               data-testid="link-auth-home"
             >
-              <ArrowLeft size={14} aria-hidden /> Back to home
+              <ArrowLeft size={14} aria-hidden className="-ml-[3px]" /> Back to home
             </Link>
             <span>© {new Date().getFullYear()} Zana</span>
           </footer>
